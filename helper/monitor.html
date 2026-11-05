@@ -1,0 +1,10 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="referrer" content="strict-origin-when-cross-origin">
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}</style></head>
+<body><script>
+// Hosts the YouTube player for the wallpaper's monitor widget (only YouTube embed URLs are accepted).
+const s=new URLSearchParams(location.search).get('src')||'';
+if(/^https:\/\/www\.youtube(-nocookie)?\.com\/embed\/[\w-]+\?[\w=&%.-]*$/.test(s)){
+  const f=document.createElement('iframe'); f.src=s; f.allow='autoplay; encrypted-media; picture-in-picture'; f.allowFullscreen=true; document.body.appendChild(f);
+}
+</script></body></html>

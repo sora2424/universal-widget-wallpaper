@@ -1,0 +1,9 @@
+# build output (re-create with tools/build.ps1)
+dist/
+
+# created by the helper at runtime — never commit
+token.js
+**/helper/token.js
+
+# logs
+*.log

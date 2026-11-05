@@ -1,0 +1,18 @@
+# Windows scripts must keep CRLF line endings (cmd.exe breaks otherwise)
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.vbs text eol=crlf
+
+*.html text eol=lf
+*.js   text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf
+
+*.jpg binary
+*.png binary
+*.zip binary
+*.gif binary
+
+# built installer: keep byte-for-byte (its SHA256 is published on the download page)
+docs/WidgetHelperSetup.cmd binary
