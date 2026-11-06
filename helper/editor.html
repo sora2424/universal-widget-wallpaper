@@ -270,7 +270,7 @@ async function load(){
 /* ---------------- screens (the wallpaper on each display keeps its own settings) ---------------- */
 const isObj=o=>!!o&&typeof o==='object'&&!Array.isArray(o);
 let INST=(location.search.match(/[?&]inst=([a-f0-9]{8,32})(?:&|$)/)||[])[1]||'', screens=[];
-const TH_NAME={crystal:'翠晶の庭',azure:'蒼薔薇の水底',hakuyou:'白曜駅',standard:'スタンダード'};
+const TH_NAME={crystal:'翠晶の庭',azure:'蒼薔薇の水底',hakuyou:'白曜駅',violet:'紫刃の鬼姫',neon:'月下のネオン都市',standard:'スタンダード'};
 const iq=()=>INST?'?inst='+INST:'';
 const pvSrc=()=>'/files/index.html?preview=1'+(INST?'&inst='+INST:'');
 const scrName=s=>'画面'+(screens.indexOf(s)+1)+(TH_NAME[s.th]?'（'+TH_NAME[s.th]+'）':'');
