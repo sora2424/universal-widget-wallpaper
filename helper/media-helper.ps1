@@ -327,8 +327,10 @@ function Sync-Wallpapers {
     # the editor / preview uses the wallpaper Wallpaper Engine is showing now (else the first connected one)
     $script:root = $null; $weCfg = ''
     foreach ($lib in (Get-SteamLibraries)) { $c = Join-Path $lib 'steamapps\common\wallpaper_engine\config.json'; if (Test-Path $c) { $weCfg += [IO.File]::ReadAllText($c) } }
-    foreach ($p in $script:wallpapers) { if ($weCfg.IndexOf(($p -replace '\\', '/'), [StringComparison]::OrdinalIgnoreCase) -ge 0) { $script:root = $p; break } }
-    if (-not $script:root -and $script:wallpapers.Count) { $script:root = $script:wallpapers[0] }
+    # (Wallpaper Engine's config also remembers wallpapers used long ago, so among those, the newest copy wins)
+    $inCfg = @($script:wallpapers | Where-Object { $weCfg.IndexOf(($_ -replace '\\', '/'), [StringComparison]::OrdinalIgnoreCase) -ge 0 })
+    if (-not $inCfg.Count) { $inCfg = @($script:wallpapers) }
+    $script:root = $inCfg | Sort-Object { try { (Get-Item -LiteralPath (Join-Path $_ 'index.html')).LastWriteTimeUtc } catch { [DateTime]::MinValue } } -Descending | Select-Object -First 1
 }
 
 function Resolve-Target([string]$t) {
@@ -446,6 +448,17 @@ while ($listener.IsListening) {
             $f = Cfg-Read $inst; $txt = '{}'; if (Test-Path -LiteralPath $f) { $txt = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) }
             if (-not $txt.Trim()) { $txt = '{}' }
             $body = '{"rev":' + (Get-ConfigRev $f) + ',"values":' + $txt + '}'; $ctype = 'application/json; charset=utf-8'
+        }
+        elseif ($cmd -eq 'fonts') {
+            # names of the fonts installed on this PC, for the editor's font-name suggestions (read-only)
+            if (-not $fromEditor) { $status = 403; $body = 'forbidden' }
+            else {
+                if (-not $script:fontJson) {
+                    try { Add-Type -AssemblyName System.Drawing; $fc = New-Object System.Drawing.Text.InstalledFontCollection
+                          $script:fontJson = ConvertTo-Json -InputObject @($fc.Families | ForEach-Object { $_.Name } | Sort-Object -Unique) -Compress; $fc.Dispose() } catch { $script:fontJson = '[]' }
+                }
+                $body = $script:fontJson; $ctype = 'application/json; charset=utf-8'
+            }
         }
         elseif ($cmd -eq 'screens') {
             if (-not $fromEditor) { $status = 403; $body = 'forbidden' } else { $body = Insts-Json; $ctype = 'application/json; charset=utf-8' }

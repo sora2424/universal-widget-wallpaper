@@ -73,7 +73,7 @@ footer{padding:40px 0 70px;color:var(--t3);font-size:13px;border-top:1px solid v
     <a class="btn2" href="WidgetHelperSetup.zip">うまくいかないときは ZIP 版</a>
   </div>
   <p class="meta">壁紙本体はこちら → <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3834059703">Steam ワークショップ「万能ウィジェット壁紙」</a></p>
-  <p class="meta">SHA256: <span id="hash">624E56203E33088D69CA0550ED4254FEC8929105539AE9204034B9A08ECB41CB</span></p>
+  <p class="meta">SHA256: <span id="hash">F6C9A4F4986BD83C21CBC84B775B951B1362CB60F299F9421DDE100DF804BE57</span></p>
 </header>
 
 <section>
@@ -126,10 +126,35 @@ footer{padding:40px 0 70px;color:var(--t3);font-size:13px;border-top:1px solid v
   </ul>
 </section>
 
+<section id="uninstall">
+  <h2><span class="no">04</span>ヘルパーの消し方</h2>
+  <p class="d">いつでも消せます。消しても壁紙はそのまま使えます。</p>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><div>
+      <h3>スタートメニューから「アンインストール」</h3>
+      <p>スタートメニューの<b>「万能ウィジェット壁紙」→「アンインストール」</b>を選び、［はい］を押します。<br>
+      （ダウンロードした <code>WidgetHelperSetup.cmd</code> をもう一度開いて、<b>［いいえ］＝アンインストール</b>を選んでも同じです）</p>
+    </div></div>
+    <div class="step"><div class="n">2</div><div>
+      <h3>設定を残すか選ぶ</h3>
+      <p>「エディタで作った設定も消しますか？」で［はい］なら設定も消えます。［いいえ］なら、また入れたときに続きから使えます。</p>
+    </div></div>
+  </div>
+  <div class="memo">消えるもの：ヘルパー本体、自動起動、スタートメニューの項目、壁紙フォルダに置いた合言葉ファイル（<code>helper\token.js</code>）、（選んだ場合）設定。<br>
+  壁紙そのものを消すときは、Wallpaper Engine のワークショップで<b>「サブスクライブ解除」</b>してください。</div>
+  <details><summary>スタートメニューに見つからないとき（手動で消す方法）</summary><p>
+    ① タスクマネージャーの「詳細」タブで、<code>powershell.exe</code>（コマンドラインに media-helper.ps1）と <code>wscript.exe</code>（start-helper.vbs）を終了します。<br>
+    ② エクスプローラーのアドレス欄に次を入力して開き、それぞれ削除します。<br>
+    　・<code>%LOCALAPPDATA%\UniversalWidgetWallpaper</code>（ヘルパー本体）<br>
+    　・<code>%APPDATA%\UniversalWidgetWallpaper</code>（設定。残したいときは消さない）<br>
+    　・<code>shell:startup</code> の中の <code>UniversalWidgetHelper.lnk</code>（自動起動）<br>
+    　・<code>shell:programs</code> の中の「万能ウィジェット壁紙」フォルダ（スタートメニュー）</p></details>
+</section>
+
 <section>
-  <h2><span class="no">04</span>よくある質問</h2>
+  <h2><span class="no">05</span>よくある質問</h2>
   <details><summary>どこに入りますか？</summary><p><code>%LOCALAPPDATA%\UniversalWidgetWallpaper</code> に入ります。壁紙のフォルダに置く必要はありません。</p></details>
-  <details><summary>消すには？</summary><p>スタートメニューの「万能ウィジェット壁紙」→「アンインストール」を選ぶだけです。もう一度 <code>WidgetHelperSetup.cmd</code> を開いて［いいえ］を選んでも消せます。</p></details>
+  <details><summary>消すには？</summary><p>スタートメニューの「万能ウィジェット壁紙」→「アンインストール」を選ぶだけです。くわしくは上の <a href="#uninstall">「04 ヘルパーの消し方」</a> をご覧ください。</p></details>
   <details><summary>「接続しますか？」で［いいえ］を押してしまいました</summary><p>スタートメニューの「アンインストール」をしてから、もう一度入れ直すと再び聞かれます。</p></details>
   <details><summary>ZIP 版の使い方は？</summary><p>ZIP をダブルクリックで開いて、中の <code>WidgetHelperSetup.cmd</code> をダブルクリックしてください。展開しなくても動きます。</p></details>
   <details><summary>動かないときは？</summary><p>スタートメニューの「万能ウィジェット壁紙」→「ヘルパーを起動する」を試してください。Wallpaper Engine の設定で「メディア連携」がオンになっているかも確認してください。</p></details>

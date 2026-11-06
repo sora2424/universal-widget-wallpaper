@@ -54,10 +54,25 @@ function Shortcut([string]$lnk, [string]$target, [string]$arguments, [string]$de
     $s = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk); $s.TargetPath = $target
     if ($arguments) { $s.Arguments = $arguments }; if ($desc) { $s.Description = $desc }; if ($icon) { $s.IconLocation = $icon }; $s.Save()
 }
+function Remove-Tokens([string]$cfg) {
+    # the helper put a small "helper\token.js" (the old pass-phrase) into each connected wallpaper folder; remove only that file
+    $list = Join-Path $cfg 'connected-wallpapers.json'; if (-not (Test-Path $list)) { return }
+    try { $j = Get-Content $list -Raw -Encoding UTF8 | ConvertFrom-Json } catch { return }
+    foreach ($w in @($j.approved)) {
+        if (-not $w -or -not (Test-Path -LiteralPath $w -PathType Container)) { continue }
+        $hd = Join-Path $w 'helper'; $tf = Join-Path $hd 'token.js'
+        if (Test-Path -LiteralPath $tf -PathType Leaf) {
+            $t = ''; try { $t = [IO.File]::ReadAllText($tf).Trim() } catch { }
+            if ($t -match "^window\.UWW_TOKEN='[0-9a-f]*';$") { Remove-Item -LiteralPath $tf -Force -ErrorAction SilentlyContinue; L "removed $tf" }
+        }
+        if ((Test-Path -LiteralPath $hd -PathType Container) -and -not (Get-ChildItem -LiteralPath $hd -Force -ErrorAction SilentlyContinue)) { Remove-Item -LiteralPath $hd -Force -ErrorAction SilentlyContinue }
+    }
+}
 function Uninstall {
     Stop-Helper
     foreach ($p in @($startup, $menu, $base)) { if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue } }
     $cfg = Join-Path $env:APPDATA 'UniversalWidgetWallpaper'
+    Remove-Tokens $cfg
     if ((Test-Path $cfg) -and (Msg "ヘルパーを削除しました。`r`n`r`nエディタで作った設定も消しますか？`r`n（［いいえ］なら、また入れたときに続きから使えます）" 'YesNo' 'Question') -eq 'Yes') {
         Remove-Item $cfg -Recurse -Force -ErrorAction SilentlyContinue
     }
