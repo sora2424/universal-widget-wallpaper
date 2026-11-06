@@ -94,6 +94,11 @@ Get-FileHash .\WidgetHelperSetup.cmd -Algorithm SHA256
 |---|---|
 | ヘルパー本体 | `%LOCALAPPDATA%\UniversalWidgetWallpaper\` |
 | 設定・接続した壁紙の一覧 | `%APPDATA%\UniversalWidgetWallpaper\` |
+| カレンダーの予定 | `%APPDATA%\UniversalWidgetWallpaper\events.json` |
+| 予定の自動バックアップ（1日1つ・30日分） | `%APPDATA%\UniversalWidgetWallpaper\backup\`（予定ノートで別のフォルダに変えられます） |
+
+**予定のプライバシー**：予定はこの PC の中だけに保存し、インターネットには送りません。読み書きできるのは、あなたが接続を許可した壁紙と、この PC の予定ノート（設定エディタと同じ合言葉で守られています）だけです。
+ただし**ファイルは暗号化していません**。PC を使える人なら中身を読めるので、パスワード・カード番号・住所・電話番号などの個人情報は書かないでください。書き出した Excel・.ics・.json のファイルを人に渡すときも注意してください。
 | 自動起動（［はい］を選んだ場合） | スタートアップの `UniversalWidgetHelper.lnk` |
 | スタートメニュー | 「万能ウィジェット壁紙」フォルダ |
 | 記録 | `%TEMP%\uww-helper.log`、`%TEMP%\uww-setup.log`（接続元の種類だけを記録し、合言葉は記録しません） |

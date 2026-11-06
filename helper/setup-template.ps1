@@ -2,7 +2,7 @@
 # ───────────────────────────────────────────────────────────────
 #  万能ウィジェット壁紙 操作ヘルパー  セットアップ
 #  ・入れる場所: %LOCALAPPDATA%\UniversalWidgetWallpaper\helper（管理者権限は不要）
-#  ・入れるもの: media-helper.ps1 / editor.html / monitor.html / start-helper.vbs
+#  ・入れるもの: media-helper.ps1 / editor.html / calendar.html / monitor.html / start-helper.vbs
 #  ・スタートメニューに「万能ウィジェット壁紙」フォルダを作ります
 #  ・自動起動はユーザーが［はい］を選んだときだけ登録します
 #  ・このファイルを開いたまま中身を確認できます（すべてテキスト）
@@ -73,7 +73,7 @@ function Uninstall {
     foreach ($p in @($startup, $menu, $base)) { if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue } }
     $cfg = Join-Path $env:APPDATA 'UniversalWidgetWallpaper'
     Remove-Tokens $cfg
-    if ((Test-Path $cfg) -and (Msg "ヘルパーを削除しました。`r`n`r`nエディタで作った設定も消しますか？`r`n（［いいえ］なら、また入れたときに続きから使えます）" 'YesNo' 'Question') -eq 'Yes') {
+    if ((Test-Path $cfg) -and (Msg "ヘルパーを削除しました。`r`n`r`nエディタで作った設定と、カレンダーの予定（バックアップも）を消しますか？`r`n（［いいえ］なら残ります。また入れたときに続きから使えます）`r`n`r`n予定を残しておきたいときは［いいえ］を選んでください。`r`n場所: $env:APPDATA\UniversalWidgetWallpaper" 'YesNo' 'Question') -eq 'Yes') {
         Remove-Item $cfg -Recurse -Force -ErrorAction SilentlyContinue
     }
     Msg "アンインストールが終わりました。壁紙はそのまま使えます。" | Out-Null

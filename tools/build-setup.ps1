@@ -1,6 +1,6 @@
 ﻿param([string]$HelperDir, [string]$OutFile)
 $ErrorActionPreference = 'Stop'
-$files = @('media-helper.ps1', 'editor.html', 'monitor.html', 'start-helper.vbs')
+$files = @('media-helper.ps1', 'editor.html', 'calendar.html', 'monitor.html', 'start-helper.vbs')
 $lines = foreach ($f in $files) { "  '$f' = '" + [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $HelperDir $f))) + "'" }
 $tpl = [IO.File]::ReadAllText((Join-Path $HelperDir 'setup-template.ps1'), [Text.Encoding]::UTF8).TrimStart([char]0xFEFF)
 $body = $tpl.Replace('__PAYLOAD__', ($lines -join "`r`n"))

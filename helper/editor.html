@@ -176,6 +176,7 @@ aside{border-left:1px solid var(--rule);padding:26px 26px 40px;overflow:auto}
     <div class="conn" id="conn"><i></i><span>接続中…</span></div>
     <div class="scrsel" id="scrSel" style="display:none"></div>
     <label class="find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="さがす（例: 音量、フォルダ、天気）"></label>
+    <a class="tool" href="/calendar" style="text-decoration:none">📅 予定ノート ↗</a>
     <a class="tool" id="bGit" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:none">GitHub ↗</a>
     <button class="tool" id="bReset">位置をリセット</button>
     <button class="tool" id="bExport">書き出し</button>
@@ -417,7 +418,7 @@ function ctl(p){
   if(p.type==='file'){
     const t=document.createElement('input'); t.className='tx'; t.value=v||''; t.placeholder='まだ選ばれていません'; t.readOnly=true;
     const b=document.createElement('button'); b.className='btn'; b.textContent='選ぶ';
-    b.onclick=async()=>{ const path=await pick(p.fileType==='video'?'video':'image'); if(path){ t.value=path; set(k,path); mark(k); } };
+    b.onclick=async()=>{ const path=await pick(p.fileType==='video'?'video':k==='pomo_sound_file'?'audio':'image'); if(path){ t.value=path; set(k,path); mark(k); } };
     w.append(t,b); return w; }
   const t=document.createElement('input'); t.className='tx'+(/_target$/.test(k)?' w':''); t.value=v??''; t.oninput=()=>{ set(k,t.value); mark(k); };
   w.appendChild(t);

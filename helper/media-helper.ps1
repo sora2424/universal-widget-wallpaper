@@ -184,12 +184,12 @@ function Pick([string]$kind) {
     $owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0; $owner.StartPosition = 'CenterScreen'
     $owner.Show(); $owner.Activate()
     try {
-        if ($kind -eq 'folder') {
-            $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = 'ショートカットにするフォルダを選んでください'
+        if ($kind -eq 'folder' -or $kind -eq 'backup') {
+            $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = $(if ($kind -eq 'backup') { '予定のバックアップを保存するフォルダを選んでください' } else { 'ショートカットにするフォルダを選んでください' })
             if ($d.ShowDialog($owner) -eq 'OK') { return $d.SelectedPath }
         } else {
             $d = New-Object System.Windows.Forms.OpenFileDialog
-            $d.Filter = $(if ($kind -eq 'video') { '動画|*.mp4;*.webm;*.mov|すべて|*.*' } else { '画像|*.png;*.jpg;*.jpeg;*.webp;*.gif;*.bmp;*.ico|すべて|*.*' })
+            $d.Filter = $(if ($kind -eq 'video') { '動画|*.mp4;*.webm;*.mov|すべて|*.*' } elseif ($kind -eq 'audio') { '音声|*.mp3;*.wav;*.ogg;*.m4a;*.aac;*.flac;*.opus|すべて|*.*' } else { '画像|*.png;*.jpg;*.jpeg;*.webp;*.gif;*.bmp;*.ico|すべて|*.*' })
             if ($d.ShowDialog($owner) -eq 'OK') { return $d.FileName }
         }
     } finally { $owner.Close() }
@@ -362,7 +362,51 @@ function Get-Query([string]$raw, [string]$name) {
 }
 function VolJson { return ([ordered]@{ vol = [Math]::Round([UwwVol]::Get(), 3); mute = [UwwVol]::Muted() } | ConvertTo-Json -Compress) }
 
+# ---- calendar events (shared by every screen): %APPDATA%\UniversalWidgetWallpaper\events.json ----
+$evFile = Join-Path $cfgDir 'events.json'
+$evCats = @('plan', 'work', 'meet', 'due', 'bday', 'anniv', 'hosp', 'off')
+# where the daily backups go: chosen on the calendar page (storage.json), otherwise %APPDATA%\UniversalWidgetWallpaper\backup
+$storeFile = Join-Path $cfgDir 'storage.json'
+function Bak-Default { return (Join-Path $cfgDir 'backup') }
+function Bak-Custom { try { if (Test-Path $storeFile) { $d = [string](Get-Content $storeFile -Raw -Encoding UTF8 | ConvertFrom-Json).backupDir
+    if ($d -and [IO.Path]::IsPathRooted($d) -and (Test-Path -LiteralPath $d -PathType Container)) { return $d } } } catch { }; return '' }
+function Bak-Dir { $c = Bak-Custom; if ($c) { return $c }; return (Bak-Default) }
+function Ev-Load { if (Test-Path $evFile) { try { $j = Get-Content $evFile -Raw -Encoding UTF8 | ConvertFrom-Json; return @($j.events | Where-Object { $_ }) } catch { } }; return @() }
+function Ev-Save($list) {
+    # keep one copy per day of the events as they were before today's first change (the newest 30 days are kept):
+    # %APPDATA%\UniversalWidgetWallpaper\backup\events-YYYYMMDD.json — the calendar page can read these back
+    try {
+        if (Test-Path $evFile) {
+            $bd = Bak-Dir; if (-not (Test-Path $bd)) { $null = New-Item -ItemType Directory -Path $bd }
+            $bf = Join-Path $bd ('events-' + (Get-Date -Format 'yyyyMMdd') + '.json')
+            if (-not (Test-Path $bf)) { Copy-Item -LiteralPath $evFile -Destination $bf }
+            Get-ChildItem $bd -Filter 'events-*.json' | Sort-Object Name -Descending | Select-Object -Skip 30 | Remove-Item -Force -ErrorAction SilentlyContinue
+        }
+    } catch { }
+    $json = ConvertTo-Json -InputObject ([ordered]@{ events = @($list) }) -Depth 4 -Compress
+    $tmp = $evFile + '.tmp'; [IO.File]::WriteAllText($tmp, $json, (New-Object Text.UTF8Encoding $false)); Move-Item -LiteralPath $tmp -Destination $evFile -Force
+}
+# only well-formed events are kept (dates, times, lengths and categories are checked; anything else is dropped)
+function Ev-Clean($e) {
+    if ($null -eq $e) { return $null }
+    $id = [string]$e.id; $date = [string]$e.date; $time = [string]$e.time; $title = [string]$e.title; $cat = [string]$e.cat; $memo = [string]$e.memo
+    if ($id -notmatch '^[A-Za-z0-9_-]{1,40}$') { return $null }
+    if ($date -notmatch '^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$') { return $null }
+    if ($time -and $time -notmatch '^([01]\d|2[0-3]):[0-5]\d$') { $time = '' }
+    $title = ($title -replace '[\x00-\x1f]', ' ').Trim(); if ($title.Length -gt 200) { $title = $title.Substring(0, 200) }
+    if (-not $title) { return $null }
+    if ($evCats -notcontains $cat) { $cat = 'plan' }
+    $memo = $memo -replace '[\x00-\x08\x0b\x0c\x0e-\x1f]', ''; if ($memo.Length -gt 2000) { $memo = $memo.Substring(0, 2000) }
+    return [ordered]@{ id = $id; date = $date; time = $time; title = $title; cat = $cat; memo = $memo }
+}
+function Read-Body($req, [int]$max) {
+    $sr = New-Object IO.StreamReader($req.InputStream, [Text.Encoding]::UTF8); $buf = New-Object char[] ($max + 1); $n = 0
+    while ($n -lt $buf.Length) { $k = $sr.Read($buf, $n, $buf.Length - $n); if ($k -le 0) { break }; $n += $k }
+    $sr.Close(); if ($n -gt $max) { return $null }; return (New-Object string ($buf, 0, $n))
+}
+
 $log = Join-Path $env:TEMP 'uww-helper.log'
+
 function Log($s) {
     try { if ((Test-Path $log) -and (Get-Item $log).Length -gt 200KB) { Remove-Item $log }
           Add-Content -LiteralPath $log -Value ("{0:yyyy-MM-dd HH:mm:ss} {1}" -f (Get-Date), $s) -Encoding UTF8 } catch { }
@@ -401,9 +445,10 @@ while ($listener.IsListening) {
 
         # static pages (read-only): the editor and the YouTube host page from the helper folder,
         # and the connected wallpaper's own web files (for the editor's preview)
-        if ($req.HttpMethod -eq 'GET' -and ($cmd -eq 'editor' -or $cmd -eq 'monitor' -or $cmd.StartsWith('files/'))) {
+        if ($req.HttpMethod -eq 'GET' -and ($cmd -eq 'editor' -or $cmd -eq 'calendar' -or $cmd -eq 'monitor' -or $cmd.StartsWith('files/'))) {
             $full = $null
             if ($cmd -eq 'editor') { $full = Join-Path $PSScriptRoot 'editor.html' }
+            elseif ($cmd -eq 'calendar') { $full = Join-Path $PSScriptRoot 'calendar.html' }
             elseif ($cmd -eq 'monitor') { $full = Join-Path $PSScriptRoot 'monitor.html' }
             elseif ($root) {
                 try {
@@ -417,7 +462,7 @@ while ($listener.IsListening) {
                 $t = $mime[[IO.Path]::GetExtension($full).ToLower()]; if (-not $t) { $t = 'application/octet-stream' }
                 $res.ContentType = $t; $res.Headers.Add('Cache-Control', 'no-cache'); $res.Headers.Add('X-Content-Type-Options', 'nosniff')
                 # anti-clickjacking: the editor and the preview may only be framed by the editor itself
-                if ($cmd -eq 'editor' -or $cmd -eq 'files/index.html') { $res.Headers.Add('Content-Security-Policy', "frame-ancestors 'self'") }
+                if ($cmd -eq 'editor' -or $cmd -eq 'calendar' -or $cmd -eq 'files/index.html') { $res.Headers.Add('Content-Security-Policy', "frame-ancestors 'self'") }
                 $b = [IO.File]::ReadAllBytes($full); $res.OutputStream.Write($b, 0, $b.Length)
             } else { $res.StatusCode = 404 }
             $res.Close(); continue
@@ -425,7 +470,7 @@ while ($listener.IsListening) {
         $res.Headers.Add('Cache-Control', 'no-store')
         if ($trusted) {
             $res.Headers.Add('Access-Control-Allow-Origin', $origin)
-            $res.Headers.Add('Access-Control-Allow-Headers', 'X-Uww-Token')
+            $res.Headers.Add('Access-Control-Allow-Headers', 'X-Uww-Token, Content-Type')
             $res.Headers.Add('Access-Control-Allow-Private-Network', 'true')
         }
         $status = 200; $body = 'ok'; $ctype = 'text/plain; charset=utf-8'
@@ -448,6 +493,41 @@ while ($listener.IsListening) {
             $f = Cfg-Read $inst; $txt = '{}'; if (Test-Path -LiteralPath $f) { $txt = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) }
             if (-not $txt.Trim()) { $txt = '{}' }
             $body = '{"rev":' + (Get-ConfigRev $f) + ',"values":' + $txt + '}'; $ctype = 'application/json; charset=utf-8'
+        }
+        elseif ($cmd -eq 'events' -and $req.HttpMethod -eq 'GET') {
+            $txt = '{"events":[]}'; if (Test-Path $evFile) { $txt = [IO.File]::ReadAllText($evFile, [Text.Encoding]::UTF8) }
+            $body = '{"rev":' + (Get-ConfigRev $evFile) + ',"data":' + $txt + '}'; $ctype = 'application/json; charset=utf-8'
+        }
+        elseif ($cmd -eq 'events-store') {
+            # GET: the backup folder in use / POST {dir}: change it (calendar page only; an existing folder, or '' for the default)
+            if ($req.HttpMethod -eq 'POST') {
+                if (-not $fromEditor) { $status = 403; $body = 'forbidden' }
+                else { $txt = Read-Body $req 4096; $dir = $null; try { $dir = [string]($txt | ConvertFrom-Json).dir } catch { }
+                    if ($null -eq $dir) { $status = 400; $body = 'bad json' }
+                    elseif ($dir -and -not ([IO.Path]::IsPathRooted($dir) -and (Test-Path -LiteralPath $dir -PathType Container))) { $status = 400; $body = 'no such folder' }
+                    else { if ($dir) { $dir = (Resolve-Path -LiteralPath $dir).ProviderPath }; [IO.File]::WriteAllText($storeFile, (ConvertTo-Json -InputObject ([ordered]@{ backupDir = $dir }) -Compress), (New-Object Text.UTF8Encoding $false)) }
+                }
+            }
+            if ($status -eq 200) { $body = ConvertTo-Json -InputObject ([ordered]@{ dir = (Bak-Dir); default = (Bak-Default); custom = [bool](Bak-Custom); events = $evFile }) -Compress; $ctype = 'application/json; charset=utf-8' }
+        }
+        elseif ($cmd -eq 'events-backup' -and $req.HttpMethod -eq 'GET') {
+            # the daily copies: without ?d= a list (newest first), with ?d=YYYYMMDD that day's copy (read-only)
+            $bd = Bak-Dir; $d = Get-Query $req.RawUrl 'd'; $ctype = 'application/json; charset=utf-8'
+            if ($d -match '^\d{8}$') { $bf = Join-Path $bd "events-$d.json"; if (Test-Path $bf) { $body = [IO.File]::ReadAllText($bf, [Text.Encoding]::UTF8) } else { $status = 404; $body = 'not found' } }
+            else { $list = @(); if (Test-Path $bd) { foreach ($f in (Get-ChildItem $bd -Filter 'events-*.json' | Sort-Object Name -Descending)) { $list += $f.BaseName.Substring(7) } }
+                   $body = ConvertTo-Json -InputObject @($list) -Compress; if (-not $list.Count) { $body = '[]' } }
+        }
+        elseif (($cmd -eq 'events-put' -or $cmd -eq 'events-del') -and $req.HttpMethod -eq 'POST') {
+            # events-put: add or update events (by id) / events-del: remove events by id
+            $txt = Read-Body $req (4MB); $arr = $null; if ($txt) { try { $arr = @($txt | ConvertFrom-Json) } catch { } }
+            if ($null -eq $arr) { $status = 400; $body = 'bad json' }
+            else {
+                $map = [ordered]@{}; foreach ($e in (Ev-Load)) { $c = Ev-Clean $e; if ($c) { $map[$c.id] = $c } }
+                if ($cmd -eq 'events-put') { foreach ($e in $arr) { $c = Ev-Clean $e; if ($c) { $map[$c.id] = $c } } }
+                else { foreach ($id in $arr) { $k = [string]$id; if ($map.Contains($k)) { $map.Remove($k) } } }
+                if ($map.Count -gt 5000) { $status = 413; $body = 'too many events' }
+                else { Ev-Save @($map.Values); $body = '{"rev":' + (Get-ConfigRev $evFile) + ',"count":' + $map.Count + '}'; $ctype = 'application/json' }
+            }
         }
         elseif ($cmd -eq 'fonts') {
             # names of the fonts installed on this PC, for the editor's font-name suggestions (read-only)
