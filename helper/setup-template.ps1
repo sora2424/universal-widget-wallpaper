@@ -37,6 +37,9 @@ function Msg([string]$text, [string]$buttons = 'OK', [string]$icon = 'Informatio
     L ("dialog [" + ($text -split "`r?`n")[0] + "] -> " + $r); return [string]$r
 }
 function Stop-Helper {
+    # the small watcher script that starts the helper again (so it does not bring it back while we update or remove it)
+    Get-CimInstance Win32_Process -Filter "Name='wscript.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like '*start-helper.vbs*' } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force } catch { } }
     $tf = Join-Path $dir 'token.js'
     if (Test-Path $tf) {
         $tk = ((Get-Content -Raw $tf) -replace "(?s).*'(.*)'.*", '$1')

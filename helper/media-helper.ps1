@@ -11,7 +11,7 @@
 
 $port = 39217
 # 配布者へ: ワークショップ公開後、その作品IDをここに入れると、その壁紙は確認なしで接続されます（例: @('3123456789')）
-$OfficialWorkshopIds = @()
+$OfficialWorkshopIds = @('3834059703')
 
 $mutex = New-Object System.Threading.Mutex($false, "Global\UniversalWidgetWallpaperHelper")
 if (-not $mutex.WaitOne(0)) { exit }
@@ -148,7 +148,37 @@ $cfgFile = Join-Path $cfgDir 'user-config.json'
 $editorOrigin = "http://localhost:$port"
 $mime = @{ '.html'='text/html; charset=utf-8'; '.js'='text/javascript; charset=utf-8'; '.css'='text/css; charset=utf-8'; '.json'='application/json; charset=utf-8'
            '.jpg'='image/jpeg'; '.jpeg'='image/jpeg'; '.png'='image/png'; '.webp'='image/webp'; '.gif'='image/gif'; '.svg'='image/svg+xml'; '.mp4'='video/mp4'; '.webm'='video/webm'; '.ico'='image/x-icon' }
-function Get-ConfigRev { if (Test-Path $cfgFile) { return [long]((Get-Item $cfgFile).LastWriteTimeUtc - [DateTime]'1970-01-01').TotalMilliseconds } return 0 }
+function Get-ConfigRev([string]$f = $cfgFile) { if (Test-Path -LiteralPath $f) { return [long]((Get-Item -LiteralPath $f).LastWriteTimeUtc - [DateTime]'1970-01-01').TotalMilliseconds } return 0 }
+
+# ---- one settings file per screen ----
+# Wallpaper Engine gives every screen its own browser storage, so the wallpaper on each screen sends its own random id
+# (?inst=). Its editor settings live in user-config-<id>.json; until the first edit, the shared user-config.json is used.
+$instFile = Join-Path $cfgDir 'screens.json'
+$insts = @{}
+try { if (Test-Path $instFile) { $j = Get-Content $instFile -Raw -Encoding UTF8 | ConvertFrom-Json; foreach ($p in $j.PSObject.Properties) { $insts[$p.Name] = @{ first = [long]$p.Value.first; last = [long]$p.Value.last; th = [string]$p.Value.th } } } } catch { }
+$instSaved = [DateTime]::MinValue
+function Now-Ms { return [long]([DateTime]::UtcNow - [DateTime]'1970-01-01').TotalMilliseconds }
+function Get-Inst([string]$raw) { $i = (Get-Query $raw 'inst').ToLower(); if ($i -match '^[a-f0-9]{8,32}$') { return $i } return '' }
+function Cfg-Read([string]$inst) { $f = $cfgFile; if ($inst) { $pf = Join-Path $cfgDir "user-config-$inst.json"; if (Test-Path $pf) { $f = $pf } }; return $f }
+function Cfg-Write([string]$inst) { if ($inst) { return (Join-Path $cfgDir "user-config-$inst.json") } return $cfgFile }
+function Seen-Inst([string]$inst, [string]$th) {
+    if (-not $inst) { return }
+    $now = Now-Ms; $new = -not $insts.ContainsKey($inst)
+    if ($new) { if ($insts.Count -ge 16) { return }; $insts[$inst] = @{ first = $now; last = $now; th = '' } }
+    $e = $insts[$inst]; $changed = $new -or ($th -match '^[a-z]{1,20}$' -and $e.th -ne $th)
+    $e.last = $now; if ($th -match '^[a-z]{1,20}$') { $e.th = $th }
+    if ($changed -or ([DateTime]::UtcNow - $script:instSaved).TotalMinutes -gt 10) {
+        $script:instSaved = [DateTime]::UtcNow
+        try { $o = [ordered]@{}; foreach ($k in $insts.Keys) { $o[$k] = $insts[$k] }; [IO.File]::WriteAllText($instFile, ($o | ConvertTo-Json -Compress -Depth 3), (New-Object Text.UTF8Encoding $false)) } catch { }
+    }
+}
+function Insts-Json {
+    $now = Now-Ms; $list = @()
+    foreach ($k in $insts.Keys) { $e = $insts[$k]; if ($now - $e.last -gt 60L * 86400000) { continue }
+        $list += [ordered]@{ id = $k; first = $e.first; th = $e.th; active = ($now - $e.last -lt 20000); own = (Test-Path (Join-Path $cfgDir "user-config-$k.json")) } }
+    $list = @($list | Sort-Object { $_.first })
+    return (ConvertTo-Json -InputObject $list -Compress -Depth 3)
+}
 function Pick([string]$kind) {
     $owner = New-Object System.Windows.Forms.Form
     $owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0; $owner.StartPosition = 'CenterScreen'
@@ -412,8 +442,13 @@ while ($listener.IsListening) {
         }
         elseif ($cmd -eq 'seek') { $status = Seek (Get-Query $req.RawUrl 'to') (Get-Query $req.RawUrl 'by'); $body = "$status" }
         elseif ($cmd -eq 'config' -and $req.HttpMethod -eq 'GET') {
-            $txt = '{}'; if (Test-Path $cfgFile) { $txt = [IO.File]::ReadAllText($cfgFile, [Text.Encoding]::UTF8) }
-            $body = '{"rev":' + (Get-ConfigRev) + ',"values":' + $txt + '}'; $ctype = 'application/json; charset=utf-8'
+            $inst = Get-Inst $req.RawUrl; if (-not $fromEditor) { Seen-Inst $inst (Get-Query $req.RawUrl 'th') }
+            $f = Cfg-Read $inst; $txt = '{}'; if (Test-Path -LiteralPath $f) { $txt = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) }
+            if (-not $txt.Trim()) { $txt = '{}' }
+            $body = '{"rev":' + (Get-ConfigRev $f) + ',"values":' + $txt + '}'; $ctype = 'application/json; charset=utf-8'
+        }
+        elseif ($cmd -eq 'screens') {
+            if (-not $fromEditor) { $status = 403; $body = 'forbidden' } else { $body = Insts-Json; $ctype = 'application/json; charset=utf-8' }
         }
         elseif ($cmd -eq 'config' -and $req.HttpMethod -eq 'POST') {
             if (-not $fromEditor -or $req.ContentLength64 -gt 1MB) { $status = 403; $body = 'forbidden' }
@@ -425,7 +460,7 @@ while ($listener.IsListening) {
                 $parsed = $null; try { $parsed = $txt | ConvertFrom-Json } catch { }
                 if ($n -gt 1MB) { $status = 413; $body = 'too large' }
                 elseif ($null -eq $parsed -or -not $txt.TrimStart().StartsWith('{')) { $status = 400; $body = 'bad json' }
-                else { [IO.File]::WriteAllText($cfgFile, $txt, (New-Object Text.UTF8Encoding $false)); $body = '{"rev":' + (Get-ConfigRev) + '}'; $ctype = 'application/json' }
+                else { $f = Cfg-Write (Get-Inst $req.RawUrl); [IO.File]::WriteAllText($f, $txt, (New-Object Text.UTF8Encoding $false)); $body = '{"rev":' + (Get-ConfigRev $f) + '}'; $ctype = 'application/json' }
             }
         }
         elseif ($cmd -eq 'pick') {
