@@ -480,9 +480,8 @@ $('bExport').onclick=()=>{ const a=document.createElement('a'); a.href=URL.creat
 $('bImport').onclick=()=>$('fImport').click();
 $('fImport').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); if(typeof j!=='object'||Array.isArray(j)) throw 0; values=j; save(); nav(); open(current); toast('設定を読み込みました'); }catch(err){ toast('読み込めませんでした'); } e.target.value=''; };
 $('bClear').onclick=()=>{ if(!confirm('エディタで変えた設定をすべて消して、Wallpaper Engine の設定に戻しますか？')) return; values={}; save(); nav(); open(current); toast('元に戻しました'); };
-// link to the project's GitHub page (derived from the download page URL https://USER.github.io/REPO/)
-function gitLink(){ const m=String(eff('helper_url')||'').match(/^https:\/\/([\w-]+)\.github\.io\/([\w.-]+)/); const a=$('bGit');
-  if(m){ a.href=`https://github.com/${m[1]}/${m[2]}`; a.style.display=''; } else a.style.display='none'; }
+// link to the project's GitHub page
+function gitLink(){ const a=$('bGit'); a.href='https://github.com/sora2424/universal-widget-wallpaper'; a.style.display=''; }
 setTimeout(gitLink,1500);
 $('bReset').onclick=()=>{ set('resetpos',true); setTimeout(()=>{ values.resetpos=false; save(); },2500); toast('ウィジェットを最初の場所に戻しました'); };
 
