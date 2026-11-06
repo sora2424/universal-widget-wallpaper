@@ -4,7 +4,7 @@ Wallpaper Engine 用の多機能 Web 壁紙です。再生中の曲、時計、�
 
 ![万能ウィジェット壁紙](docs/preview.gif)
 
-**▶ [壁紙本体（Steam ワークショップ）](https://steamcommunity.com/sharedfiles/filedetails/?id=3834059703)**　・　**[操作ヘルパーの配布ページ](https://sora2424.github.io/universal-widget-wallpaper/)**　・　[不具合の報告](https://github.com/sora2424/universal-widget-wallpaper/issues)
+**▶ [壁紙本体（Steam ワークショップ）](https://steamcommunity.com/sharedfiles/filedetails/?id=3834675035)**　・　**[操作ヘルパーの配布ページ](https://sora2424.github.io/universal-widget-wallpaper/)**　・　[不具合の報告](https://github.com/sora2424/universal-widget-wallpaper/issues)
 
 > 壁紙本体は **Steam ワークショップ（Wallpaper Engine）でのみ配布**しています。
 > このリポジトリにあるのは、壁紙をもっと便利にする「操作ヘルパー」とその配布ページです。
@@ -27,7 +27,7 @@ Wallpaper Engine 用の多機能 Web 壁紙です。再生中の曲、時計、�
 ## 使い方
 
 ### 1. 壁紙を入れる
-[Steam ワークショップの作品ページ](https://steamcommunity.com/sharedfiles/filedetails/?id=3834059703) を開いて、**サブスクライブ** してください（Wallpaper Engine の「ワークショップ」で「万能ウィジェット壁紙」を検索しても見つかります）。
+[Steam ワークショップの作品ページ](https://steamcommunity.com/sharedfiles/filedetails/?id=3834675035) を開いて、**サブスクライブ** してください（Wallpaper Engine の「ワークショップ」で「万能ウィジェット壁紙」を検索しても見つかります）。
 
 Wallpaper Engine の設定で **「メディア連携」をオン**にしてください（曲の表示に必要です）。
 右下にマウスを近づけると出る ⚙ ボタンで、設定パネルが開きます。
