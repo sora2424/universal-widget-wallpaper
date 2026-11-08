@@ -73,7 +73,7 @@ footer{padding:40px 0 70px;color:var(--t3);font-size:13px;border-top:1px solid v
     <a class="btn2" href="WidgetHelperSetup.zip">うまくいかないときは ZIP 版</a>
   </div>
   <p class="meta">壁紙本体はこちら → <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3834675035">Steam ワークショップ「万能ウィジェット壁紙」</a></p>
-  <p class="meta">SHA256: <span id="hash">5F0F3E94F2265F8531ED771CFC3B8DD9CA87C959BD62CB9C6FA856A490B2F620</span></p>
+  <p class="meta">SHA256: <span id="hash">80966629F8E637C60BC162BD28BF228082D48BB0237F6AD3582217706B4378DE</span></p>
 </header>
 
 <section>
@@ -126,8 +126,26 @@ footer{padding:40px 0 70px;color:var(--t3);font-size:13px;border-top:1px solid v
   </ul>
 </section>
 
+<section id="update">
+  <h2><span class="no">04</span>ヘルパーの更新</h2>
+  <p class="d">新しい版が出たら、同じ手順で入れ直すだけです。設定・予定・バックアップはそのまま残ります。</p>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><div>
+      <h3>最新の WidgetHelperSetup.cmd をダウンロード</h3>
+      <p>このページの上のボタンから、もう一度ダウンロードします。</p>
+    </div></div>
+    <div class="step"><div class="n">2</div><div>
+      <h3>ダブルクリックして［はい］</h3>
+      <p>「すでに入っています」と出たら<b>［はい］（入れ直す）</b>を選びます。入っている版と新しい版の番号も表示されます。</p>
+    </div></div>
+  </div>
+  <div class="memo">今の版は、設定エディタの左上に「ヘルパー v1.4」のように表示されます。<b>表示がない場合は v1.3 以前</b>です。<br>
+  v1.4 からは、設定エディタを開いたときに新しい版があれば画面でお知らせします（GitHub に最新版の番号を1日1回まで問い合わせるだけで、ほかには何も送りません）。<br>
+  <b>v1.3 以前を使っている方は、お知らせが出ないので一度だけ入れ直してください。</b>新しいワークショップの作品ページ（2026年11月6日に公開）の壁紙と、確認なしでつながるようになります。</div>
+</section>
+
 <section id="uninstall">
-  <h2><span class="no">04</span>ヘルパーの消し方</h2>
+  <h2><span class="no">05</span>ヘルパーの消し方</h2>
   <p class="d">いつでも消せます。消しても壁紙はそのまま使えます。</p>
   <div class="steps">
     <div class="step"><div class="n">1</div><div>
@@ -152,10 +170,10 @@ footer{padding:40px 0 70px;color:var(--t3);font-size:13px;border-top:1px solid v
 </section>
 
 <section>
-  <h2><span class="no">05</span>よくある質問</h2>
+  <h2><span class="no">06</span>よくある質問</h2>
   <details><summary>どこに入りますか？</summary><p><code>%LOCALAPPDATA%\UniversalWidgetWallpaper</code> に入ります。壁紙のフォルダに置く必要はありません。</p></details>
-  <details><summary>消すには？</summary><p>スタートメニューの「万能ウィジェット壁紙」→「アンインストール」を選ぶだけです。くわしくは上の <a href="#uninstall">「04 ヘルパーの消し方」</a> をご覧ください。</p></details>
-  <details><summary>「接続しますか？」で［いいえ］を押してしまいました</summary><p>スタートメニューの「アンインストール」をしてから、もう一度入れ直すと再び聞かれます。</p></details>
+  <details><summary>消すには？</summary><p>スタートメニューの「万能ウィジェット壁紙」→「アンインストール」を選ぶだけです。くわしくは上の <a href="#uninstall">「05 ヘルパーの消し方」</a> をご覧ください。</p></details>
+  <details><summary>「接続しますか？」で［いいえ］を押してしまいました</summary><p><code>WidgetHelperSetup.cmd</code> をもう一度開いて［はい］（入れ直す）を選ぶと、もう一度聞かれます。v1.4 以降なら、設定エディタに出る「壁紙を探してつなぐ」ボタンからでもつなぎ直せます。</p></details>
   <details><summary>ZIP 版の使い方は？</summary><p>ZIP をダブルクリックで開いて、中の <code>WidgetHelperSetup.cmd</code> をダブルクリックしてください。展開しなくても動きます。</p></details>
   <details><summary>動かないときは？</summary><p>スタートメニューの「万能ウィジェット壁紙」→「ヘルパーを起動する」を試してください。Wallpaper Engine の設定で「メディア連携」がオンになっているかも確認してください。</p></details>
 </section>

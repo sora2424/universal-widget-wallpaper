@@ -36,6 +36,56 @@ function Msg([string]$text, [string]$buttons = 'OK', [string]$icon = 'Informatio
     $r = [System.Windows.Forms.MessageBox]::Show($o, $text, "$app セットアップ", $buttons, $icon); $o.Close()
     L ("dialog [" + ($text -split "`r?`n")[0] + "] -> " + $r); return [string]$r
 }
+function Steam-Libraries {
+    $libs = @(); $sp = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamPath
+    if ($sp) {
+        $sp = $sp -replace '/', '\'; $libs += $sp
+        $vdf = Join-Path $sp 'steamapps\libraryfolders.vdf'
+        if (Test-Path $vdf) { foreach ($m in (Select-String -Path $vdf -Pattern '"path"\s+"([^"]+)"')) { $libs += ($m.Matches[0].Groups[1].Value -replace '\\\\', '\') } }
+    }
+    return @($libs | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique)
+}
+function Find-Wallpapers {
+    # folders of this wallpaper: your own copies (myprojects) and Workshop subscriptions
+    $found = @()
+    foreach ($lib in (Steam-Libraries)) {
+        foreach ($b in @((Join-Path $lib 'steamapps\common\wallpaper_engine\projects\myprojects'), (Join-Path $lib 'steamapps\workshop\content\431960'))) {
+            if (-not (Test-Path $b)) { continue }
+            foreach ($d in (Get-ChildItem $b -Directory -ErrorAction SilentlyContinue)) {
+                $idx = Join-Path $d.FullName 'index.html'; if (-not (Test-Path $idx)) { continue }
+                try { $fs = [IO.File]::OpenRead($idx); $buf = New-Object byte[] 4096; $n = $fs.Read($buf, 0, 4096); $fs.Close()
+                      if ([Text.Encoding]::UTF8.GetString($buf, 0, $n) -match 'name="universal-widget-wallpaper"') { $found += $d.FullName } } catch { }
+            }
+        }
+    }
+    return $found
+}
+function Connect-Wallpapers {
+    # ask about every wallpaper copy in ONE question here, so the helper has nothing left to ask when it starts
+    $trust = Join-Path $env:APPDATA 'UniversalWidgetWallpaper\connected-wallpapers.json'
+    $ok = @(); $no = @()
+    if (Test-Path $trust) { try { $j = [IO.File]::ReadAllText($trust, [Text.Encoding]::UTF8) | ConvertFrom-Json; $ok = @($j.approved | Where-Object { $_ }) } catch { } }
+    # the official Workshop items are connected without asking (the list is read from the helper being installed)
+    $official = @(); $hs = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload['media-helper.ps1']))
+    if ($hs -match '\$OfficialWorkshopIds = @\(([^)]*)\)') { $official = @([regex]::Matches($Matches[1], '\d+') | ForEach-Object { $_.Value }) }
+    $ask = @()
+    foreach ($p in @(Find-Wallpapers)) {
+        if (-not $p -or $ok -contains $p) { continue }
+        $isOfficial = $false; foreach ($id in $official) { if ($p -like "*\workshop\content\431960\$id") { $isOfficial = $true } }
+        if ($isOfficial) { $ok += $p } else { $ask += $p }
+    }
+    L ("wallpapers: connected=" + $ok.Count + " to ask=" + $ask.Count)
+    if ($ask.Count) {
+        $names = ($ask | ForEach-Object { '  ・' + $_ }) -join "`r`n"
+        $r = Msg ("この PC で「万能ウィジェット壁紙」のコピーが見つかりました（" + $ask.Count + " 個）。`r`n`r`n" + $names + "`r`n`r`n" +
+                  "ヘルパーと接続しますか？`r`n接続すると、これらの壁紙から 再生・音量・フォルダを開く・PCの状態・設定エディタ が使えます。`r`n" +
+                  "自分で入れた壁紙なら［はい］を押してください。") 'YesNo' 'Question'
+        if ($r -eq 'Yes') { $ok += $ask } else { $no += $ask }
+    }
+    $dirT = Split-Path $trust; if (-not (Test-Path $dirT)) { $null = New-Item -ItemType Directory -Path $dirT }
+    [IO.File]::WriteAllText($trust, (@{ approved = @($ok); declined = @($no) } | ConvertTo-Json -Compress), $utf8)
+    return @($ok | Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $_ 'index.html')) }).Count
+}
 function Stop-Helper {
     # the small watcher script that starts the helper again (so it does not bring it back while we update or remove it)
     Get-CimInstance Win32_Process -Filter "Name='wscript.exe'" -ErrorAction SilentlyContinue |
@@ -84,8 +134,15 @@ if ($Mode -eq 'uninstall') {
     return
 }
 
+# version numbers: the one already installed (older helpers have none) and the one in this setup
+function Helper-Version([string]$text) { if ($text -match "\`$HelperVersion = '([\d.]+)'") { return $Matches[1] } return '' }
+$newVer = Helper-Version ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload['media-helper.ps1'])))
 if (Test-Path (Join-Path $dir 'media-helper.ps1')) {
-    $r = Msg "操作ヘルパーはすでに入っています。`r`n`r`n［はい］　　最新版に入れ直す`r`n［いいえ］　アンインストールする`r`n［キャンセル］何もしない" 'YesNoCancel' 'Question'
+    $oldVer = Helper-Version ([IO.File]::ReadAllText((Join-Path $dir 'media-helper.ps1'), [Text.Encoding]::UTF8))
+    $oldTxt = $(if ($oldVer) { "v$oldVer" } else { 'v1.3 以前' }); $newTxt = $(if ($newVer) { "v$newVer" } else { '?' })
+    $verLine = "入っている版: $oldTxt　→　このファイルの版: $newTxt"
+    if ($oldVer -and $newVer -and ([version]$oldVer -gt [version]$newVer)) { $verLine += "`r`n（入っている版のほうが新しいです。入れ直すと古い版に戻ります）" }
+    $r = Msg "操作ヘルパーはすでに入っています。`r`n$verLine`r`n`r`n［はい］　　このファイルの版に入れ直す（設定と予定はそのまま）`r`n［いいえ］　アンインストールする`r`n［キャンセル］何もしない" 'YesNoCancel' 'Question'
     if ($r -eq 'No') { Uninstall; return }
     if ($r -ne 'Yes') { return }
 } else {
@@ -112,10 +169,6 @@ try {
         $bytes = [Convert]::FromBase64String($payload[$name])
         [IO.File]::WriteAllBytes((Join-Path $dir $name), $bytes)       # written fresh: no "downloaded from the internet" mark
     }
-    # forget earlier "don't connect" answers, so a reinstall asks again
-    $trust = Join-Path $env:APPDATA 'UniversalWidgetWallpaper\connected-wallpapers.json'
-    if (Test-Path $trust) { try { $j = Get-Content $trust -Raw -Encoding UTF8 | ConvertFrom-Json
-        [IO.File]::WriteAllText($trust, (@{ approved = @($j.approved); declined = @() } | ConvertTo-Json -Compress), $utf8) } catch { } }
     # keep a copy of this setup for uninstalling later (bytes only, so no download mark is copied)
     [IO.File]::WriteAllBytes((Join-Path $base 'setup.cmd'), [IO.File]::ReadAllBytes($Self))
 
@@ -129,6 +182,9 @@ try {
         Shortcut $startup 'wscript.exe' ('"' + $vbs + '"') '万能ウィジェット壁紙 操作ヘルパー' ''
     } elseif (Test-Path $startup) { Remove-Item $startup -Force }
 
+    # which wallpapers may use the helper: one question, asked before the helper starts (earlier "no" answers are asked again)
+    $nConnected = Connect-Wallpapers
+
     L "files written; starting helper"
     Start-Process wscript.exe -ArgumentList ('"' + $vbs + '"')
     # the helper writes a fresh token.js the moment it starts (it may then be busy asking "connect?", so don't rely on ping)
@@ -136,10 +192,10 @@ try {
     for ($i = 0; $i -lt 30 -and -not $ok; $i++) { Start-Sleep -Milliseconds 500; $ok = (Test-Path $tf) -and ((Get-Item $tf).LastWriteTime -ge $began) }
     L "helper started: $ok"
     if ($ok) {
-        Msg ("インストールが終わりました！`r`n`r`n" +
-             "・このあと「壁紙と接続しますか？」と聞かれたら［はい］を押してください`r`n" +
-             "・壁紙の右下にマウスを近づけると出る ⚙ ボタンから設定エディタが開けます`r`n" +
-             "・スタートメニューの「万能ウィジェット壁紙」からも開けます") | Out-Null
+        $tail = $(if ($nConnected) { "・壁紙の右下にマウスを近づけると出る ⚙ ボタンから設定エディタが開けます`r`n" } else {
+                  "・まだ壁紙とつながっていません。Wallpaper Engine で壁紙をサブスクライブしてから、`r`n　スタートメニューの「設定エディタを開く」→「壁紙を探してつなぐ」を押してください`r`n" })
+        Msg ("インストールが終わりました！`r`n`r`n" + $tail +
+             "・スタートメニューの「万能ウィジェット壁紙」から、設定エディタやアンインストールを開けます") | Out-Null
     } else {
         Msg "ファイルは入りましたが、ヘルパーの起動を確認できませんでした。`r`nスタートメニューの「万能ウィジェット壁紙」→「ヘルパーを起動する」を試してください。" 'OK' 'Warning' | Out-Null
     }

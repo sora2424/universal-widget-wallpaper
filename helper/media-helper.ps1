@@ -12,6 +12,7 @@
 $port = 39217
 # 配布者へ: ワークショップ公開後、その作品IDをここに入れると、その壁紙は確認なしで接続されます（例: @('3123456789')）
 $OfficialWorkshopIds = @('3834675035', '3834059703')
+$HelperVersion = '1.4'                            # shown in the editor and compared with the newest release on GitHub
 
 $mutex = New-Object System.Threading.Mutex($false, "Global\UniversalWidgetWallpaperHelper")
 if (-not $mutex.WaitOne(0)) { exit }
@@ -297,12 +298,12 @@ function Find-Wallpapers {
     }
     return ,$found
 }
-function Ask-Connect([string]$path) {
-    $title = '万能ウィジェット壁紙'
-    try { $title = (Get-Content (Join-Path $path 'project.json') -Raw -Encoding UTF8 | ConvertFrom-Json).title } catch { }
+function Ask-Connect($paths) {
+    # one question for every new copy found at once (not one window per folder)
+    $paths = @($paths); $list = ($paths | ForEach-Object { '  ・' + $_ }) -join "`r`n"
     $owner = New-Object System.Windows.Forms.Form; $owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0; $owner.Show(); $owner.Activate()
-    $msg = "次の壁紙が見つかりました。ヘルパーと接続しますか？`r`n`r`n  名前: $title`r`n  場所: $path`r`n`r`n" +
-           "接続すると、この壁紙から 再生・音量・フォルダを開く・PCの状態 が使えるようになります。`r`n" +
+    $msg = "「万能ウィジェット壁紙」が見つかりました（" + $paths.Count + " 個）。ヘルパーと接続しますか？`r`n`r`n" + $list + "`r`n`r`n" +
+           "接続すると、この壁紙から 再生・音量・フォルダを開く・PCの状態・設定エディタ が使えるようになります。`r`n" +
            "自分で入れた「万能ウィジェット壁紙」なら［はい］を押してください。"
     $r = [System.Windows.Forms.MessageBox]::Show($owner, $msg, '万能ウィジェット壁紙 ヘルパー', 'YesNo', 'Question'); $owner.Close()
     return ($r -eq 'Yes')
@@ -311,12 +312,14 @@ $lastSync = [DateTime]::MinValue
 function Sync-Wallpapers {
     $script:lastSync = [DateTime]::UtcNow
     $t = Get-Trust; $changed = $false
+    $ask = @()
     foreach ($p in (Find-Wallpapers)) {
-        if ($t.approved -contains $p -or $t.declined -contains $p) { continue }
+        if (-not $p -or $t.approved -contains $p -or $t.declined -contains $p) { continue }
         $official = $false; foreach ($id in $OfficialWorkshopIds) { if ($id -and $p -like "*\workshop\content\431960\$id") { $official = $true } }
-        if ($official -or (Ask-Connect $p)) { $t.approved += $p } else { $t.declined += $p }
+        if ($official) { $t.approved += $p } else { $ask += $p }
         $changed = $true
     }
+    if ($ask.Count) { if (Ask-Connect $ask) { $t.approved += $ask } else { $t.declined += $ask } }
     if ($changed) { Save-Trust $t }
     $script:wallpapers = @($t.approved | Where-Object { $_ -and (Test-Path (Join-Path $_ 'index.html')) })
     $want = "window.UWW_TOKEN='$token';"
@@ -477,6 +480,7 @@ while ($listener.IsListening) {
 
         if ($req.HttpMethod -eq 'OPTIONS') { $status = $(if ($trusted) { 204 } else { 403 }); $body = '' }
         elseif ($cmd -eq 'ping') { $body = 'ok v7' }
+        elseif ($cmd -eq 'version') { $body = $HelperVersion }
         elseif ($cmd -eq 'token') { if ($fromEditor) { $body = $token } else { $status = 403; $body = 'forbidden' } }
         elseif (-not $trusted -or -not $token -or [string]$req.Headers['X-Uww-Token'] -cne $token) { $status = 403; $body = 'forbidden' }
         elseif ($cmd -eq 'hello') { $body = 'hi' }
@@ -542,6 +546,21 @@ while ($listener.IsListening) {
         }
         elseif ($cmd -eq 'screens') {
             if (-not $fromEditor) { $status = 403; $body = 'forbidden' } else { $body = Insts-Json; $ctype = 'application/json; charset=utf-8' }
+        }
+        elseif ($cmd -eq 'wallpapers') {
+            # editor only: is any wallpaper connected? (so the editor can tell "not connected yet" from "helper not running")
+            if (-not $fromEditor) { $status = 403; $body = 'forbidden' }
+            else {
+                $t = Get-Trust; $found = Find-Wallpapers; $nFound = 0; foreach ($f in $found) { if ($f) { $nFound++ } }
+                if ($req.HttpMethod -eq 'POST') {
+                    # the user pressed "connect" in the editor: ask again about the wallpapers they said no to earlier
+                    $t.declined = @(); Save-Trust $t
+                    try { Sync-Wallpapers } catch { Log "sync error: $_" }
+                    $t = Get-Trust
+                }
+                $body = ([ordered]@{ connected = @($script:wallpapers).Count; found = $nFound; declined = @($t.declined).Count; ready = [bool]$script:root } | ConvertTo-Json -Compress)
+                $ctype = 'application/json; charset=utf-8'
+            }
         }
         elseif ($cmd -eq 'config' -and $req.HttpMethod -eq 'POST') {
             if (-not $fromEditor -or $req.ContentLength64 -gt 1MB) { $status = 403; $body = 'forbidden' }
