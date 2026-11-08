@@ -11,8 +11,8 @@
 
 $port = 39217
 # 配布者へ: ワークショップ公開後、その作品IDをここに入れると、その壁紙は確認なしで接続されます（例: @('3123456789')）
-$OfficialWorkshopIds = @('3834675035', '3834059703')
-$HelperVersion = '1.6'                            # shown in the editor and compared with the newest release on GitHub
+$OfficialWorkshopIds = @('3835840526', '3834675035', '3834059703')
+$HelperVersion = '1.6.1'                            # shown in the editor and compared with the newest release on GitHub
 
 $mutex = New-Object System.Threading.Mutex($false, "Global\UniversalWidgetWallpaperHelper")
 if (-not $mutex.WaitOne(0)) { exit }
