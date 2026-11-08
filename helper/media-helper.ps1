@@ -12,7 +12,7 @@
 $port = 39217
 # 配布者へ: ワークショップ公開後、その作品IDをここに入れると、その壁紙は確認なしで接続されます（例: @('3123456789')）
 $OfficialWorkshopIds = @('3834675035', '3834059703')
-$HelperVersion = '1.5'                            # shown in the editor and compared with the newest release on GitHub
+$HelperVersion = '1.6'                            # shown in the editor and compared with the newest release on GitHub
 
 $mutex = New-Object System.Threading.Mutex($false, "Global\UniversalWidgetWallpaperHelper")
 if (-not $mutex.WaitOne(0)) { exit }
@@ -466,11 +466,13 @@ function Ev-Clean($e) {
     if ($id -notmatch '^[A-Za-z0-9_-]{1,40}$') { return $null }
     if ($date -notmatch '^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$') { return $null }
     if ($time -and $time -notmatch '^([01]\d|2[0-3]):[0-5]\d$') { $time = '' }
+    # the end time is kept only with a start time ("10:00-11:30"); an end before the start means it runs past midnight
+    $end = [string]$e.end; if (-not $time -or $end -notmatch '^([01]\d|2[0-3]):[0-5]\d$' -or $end -eq $time) { $end = '' }
     $title = ($title -replace '[\x00-\x1f]', ' ').Trim(); if ($title.Length -gt 200) { $title = $title.Substring(0, 200) }
     if (-not $title) { return $null }
     if ($evCats -notcontains $cat) { $cat = 'plan' }
     $memo = $memo -replace '[\x00-\x08\x0b\x0c\x0e-\x1f]', ''; if ($memo.Length -gt 2000) { $memo = $memo.Substring(0, 2000) }
-    return [ordered]@{ id = $id; date = $date; time = $time; title = $title; cat = $cat; memo = $memo }
+    return [ordered]@{ id = $id; date = $date; time = $time; end = $end; title = $title; cat = $cat; memo = $memo }
 }
 function Read-Body($req, [int]$max) {
     $sr = New-Object IO.StreamReader($req.InputStream, [Text.Encoding]::UTF8); $buf = New-Object char[] ($max + 1); $n = 0

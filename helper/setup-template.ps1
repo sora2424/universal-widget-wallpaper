@@ -177,6 +177,9 @@ try {
     Shortcut (Join-Path $menu '設定エディタを開く.lnk') 'explorer.exe' 'http://localhost:39217/editor' 'ブラウザで設定エディタを開きます' "$env:SystemRoot\System32\imageres.dll,109"
     Shortcut (Join-Path $menu 'ヘルパーを起動する.lnk') 'wscript.exe' ('"' + $vbs + '"') '操作ヘルパーを起動します' "$env:SystemRoot\System32\imageres.dll,176"
     Shortcut (Join-Path $menu 'アンインストール.lnk') 'cmd.exe' ('/c ""' + (Join-Path $base 'setup.cmd') + '" uninstall"') '操作ヘルパーを削除します' "$env:SystemRoot\System32\imageres.dll,84"
+    # links to the project page (explanations and new versions) and the author's blog: opened in the browser, nothing is run
+    Shortcut (Join-Path $menu '説明と新しい版（GitHub）.lnk') 'explorer.exe' 'https://github.com/sora2424/universal-widget-wallpaper' '説明と新しい版のダウンロード（GitHub）' "$env:SystemRoot\System32\imageres.dll,1"
+    Shortcut (Join-Path $menu '作者のブログ.lnk') 'explorer.exe' 'https://awa3.jp/' '作者のブログ（awa3.jp）' "$env:SystemRoot\System32\imageres.dll,1"
 
     if ((Msg "パソコンを起動したときに、ヘルパーも自動で起動しますか？`r`n`r`n（おすすめ: はい　／　あとからアンインストールで消せます）" 'YesNo' 'Question') -eq 'Yes') {
         Shortcut $startup 'wscript.exe' ('"' + $vbs + '"') '万能ウィジェット壁紙 操作ヘルパー' ''

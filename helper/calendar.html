@@ -4,6 +4,33 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>万能ウィジェット壁紙 — 予定ノート</title>
+<script>
+/* look & layout of this page (kept in this browser only): theme, design, accent colour, layout, text size */
+(function(){
+  const DEF={theme:'auto',look:'note',acc:'#ff9b85',layout:'std',size:'m'}, OK={theme:['auto','dark','light'],look:['note','simple','bold'],layout:['std','big','focus'],size:['s','m','l']};
+  const get=()=>{ let u={}; try{ u=JSON.parse(localStorage.getItem('uww-ui')||'{}')||{}; }catch(e){}
+    const o={...DEF}; for(const k in OK) if(OK[k].includes(u[k])) o[k]=u[k]; if(/^#[0-9a-f]{6}$/i.test(u.acc||'')) o.acc=u.acc.toLowerCase(); return o; };
+  const rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
+  const lum=c=>{ const f=v=>{ v/=255; return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4); }; return .2126*f(c[0])+.7152*f(c[1])+.0722*f(c[2]); };
+  const con=(a,b)=>{ const x=lum(a), y=lum(b); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05); };
+  const mix=(c,t,k)=>c.map((v,i)=>Math.round(v+(t[i]-v)*k));
+  const hex=c=>'#'+c.map(v=>v.toString(16).padStart(2,'0')).join('');
+  function apply(u){
+    const r=document.documentElement, dark=u.theme==='dark'||(u.theme==='auto'&&!(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches));
+    r.dataset.theme=dark?'dark':'light'; r.dataset.look=u.look; r.dataset.layout=u.layout; r.dataset.size=u.size;
+    // the accent is lightened / darkened until it reads well on the page colour
+    const bg=dark?[20,17,22]:[255,253,249]; let c=rgb(u.acc);
+    for(let i=0;i<12&&con(c,bg)<(dark?4.5:3.2);i++) c=mix(c,dark?[255,255,255]:[0,0,0],.12);
+    const ink=con(c,[255,255,255])>=con(c,[30,20,18])?'#ffffff':'#1e1412';
+    r.style.setProperty('--acc',hex(c)); r.style.setProperty('--acc-ink',ink);
+    r.style.setProperty('--acc-soft',`rgba(${c},.14)`); r.style.setProperty('--acc-line',`rgba(${c},.42)`); r.style.setProperty('--acc-faint',`rgba(${c},.2)`);
+  }
+  window.UWW_UI={DEF,get,apply,set(k,v){ const u=get(); u[k]=v; try{ localStorage.setItem('uww-ui',JSON.stringify(u)); }catch(e){} apply(get()); return get(); },
+    reset(){ try{ localStorage.removeItem('uww-ui'); }catch(e){} apply(DEF); return {...DEF}; }};
+  apply(get());
+  if(window.matchMedia) matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>apply(get()));
+})();
+</script>
 <style>
 :root{
   --ink:#141116; --paper:#1c181d; --paper2:#231e24; --rule:rgba(239,233,228,.08); --rule2:rgba(239,233,228,.16);
@@ -64,7 +91,8 @@ h3{margin:0 0 10px;font:600 17px var(--serif);letter-spacing:.04em}
 .list{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
 .ev{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border-radius:9px;background:var(--paper2);border-left:4px solid var(--c);cursor:pointer}
 .ev:hover{background:#2a242b}
-.ev .t{font:13px var(--mono);color:var(--t2);min-width:46px;padding-top:1px}
+.ev .t{font:13px var(--mono);color:var(--t2);min-width:46px;padding-top:1px;white-space:nowrap}
+.tsep{color:var(--t3)}
 .ev .b{flex:1;min-width:0}
 .ev .ti{font-weight:600;word-break:break-word}
 .ev .me{font-size:13px;color:var(--t2);white-space:pre-wrap;word-break:break-word}
@@ -125,6 +153,23 @@ dialog{background:var(--paper);color:var(--t1);border:1px solid var(--rule2);bor
 dialog::backdrop{background:rgba(0,0,0,.6)}
 dialog p{margin:0 0 12px;color:var(--t2)}
 dialog .opts{display:flex;flex-direction:column;gap:8px;margin:12px 0 18px}
+:root{color-scheme:dark}
+:root[data-theme=light]{
+  --ink:#f5f2ed; --paper:#fffdf9; --paper2:#f3eee7; --rule:rgba(52,40,34,.1); --rule2:rgba(52,40,34,.22);
+  --t1:#2a2220; --t2:#5c534e; --t3:#8c827c; color-scheme:light;
+}
+:root[data-theme=light] ::-webkit-scrollbar-thumb{background:rgba(52,40,34,.18)}
+:root[data-theme=light] .pop button:hover,:root[data-theme=light] .nav:hover,:root[data-theme=light] .btn:hover{background:rgba(52,40,34,.06)}
+:root[data-theme=light] .ev:hover{background:#ebe5dd}
+:root[data-theme=light] .chip{background:rgba(52,40,34,.05)}
+:root[data-theme=light] .in{background:#fff}
+:root[data-theme=light] .cats button.on{background:rgba(52,40,34,.07)}
+:root[data-theme=light] .day.sun .n b,:root[data-theme=light] .day.hol .n b,:root[data-theme=light] .day .hn,:root[data-theme=light] .wd.sun{color:#d03b3b}
+:root[data-theme=light] .day.sat .n b,:root[data-theme=light] .wd.sat{color:#2f6fd0}
+:root[data-theme=light] .day.today .n b{color:var(--acc-ink)}
+:root[data-theme=light] .off{background:rgba(245,242,237,.92)}
+:root[data-theme=light] .privacy{border-color:rgba(47,154,92,.3);background:rgba(47,154,92,.06)}
+.ui-t{font-size:15px}
 </style>
 </head>
 <body>
@@ -150,6 +195,9 @@ dialog .opts{display:flex;flex-direction:column;gap:8px;margin:12px 0 18px}
       <button data-p="list">予定の一覧<small>表示している年の予定をすべて</small></button>
     </div></div>
   <a class="tool" id="bEditor" href="/editor">設定エディタ ↗</a>
+  <button class="tool ui-t" id="bTheme" title="明るさを切り替えます（設定エディタの「見た目」と同じ設定です）">☀</button>
+  <a class="tool" href="https://github.com/sora2424/universal-widget-wallpaper" target="_blank" rel="noopener noreferrer" title="使い方・新しい版（GitHub）">ヘルプ ↗</a>
+  <a class="tool" href="https://awa3.jp/" target="_blank" rel="noopener noreferrer" title="作者のブログ（awa3.jp）">作者のブログ ↗</a>
 </header>
 <main>
   <section class="panel">
@@ -162,7 +210,7 @@ dialog .opts{display:flex;flex-direction:column;gap:8px;margin:12px 0 18px}
       <div class="list" id="dlist"></div>
       <form id="form" autocomplete="off">
         <label>日付</label><input class="in" type="date" id="fDate" required>
-        <label>時刻</label><div class="row"><input class="in" type="time" id="fTime" style="width:140px"><label><input type="checkbox" id="fAll"> 終日</label></div>
+        <label>時刻</label><div class="row"><input class="in" type="time" id="fTime" style="width:130px" title="始まる時刻"><span class="tsep">〜</span><input class="in" type="time" id="fEnd" style="width:130px" title="終わる時刻（なくてもOK）"><label><input type="checkbox" id="fAll"> 終日</label></div>
         <label>予定</label><input class="in" id="fTitle" maxlength="200" placeholder="例: 歯医者、レポート提出" required>
         <label>種類</label><div class="cats" id="fCats"></div>
         <label>メモ</label><textarea class="in" id="fMemo" maxlength="2000" placeholder="場所や持ち物など（なくてもOK）"></textarea>
@@ -208,6 +256,8 @@ const WD=['日','月','火','水','木','金','土'];
 function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(()=>t.classList.remove('show'),2600); }
 function conn(cls,txt){ const c=$('conn'); c.className='conn '+cls; c.lastChild.textContent=txt; }
 const okEv=e=>e&&/^\d{4}-\d{2}-\d{2}$/.test(e.date)&&typeof e.title==='string'&&e.title.trim()&&/^[A-Za-z0-9_-]{1,40}$/.test(e.id||'');
+// "10:00–11:30" / "10:00" / "終日" (an end earlier than the start runs past midnight)
+const tspan=(e,allDay='終日')=>e.time?(e.end?e.time+'–'+e.end:e.time):allDay;
 const newId=()=>'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 // imported rows without an ID get one from their content, so importing the same file twice does not double them
 function hashId(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return 'x'+(h>>>0).toString(36)+s.length.toString(36); }
@@ -248,7 +298,7 @@ function drawMonth(){
   for(let c=0;c<cells;c++){ const d=new Date(y,m,1-lead+c), ds=ymd(d), evs=bd[ds]||[], hn=holOf(d);
     const cls=['day',d.getMonth()!==m?'other':'',ds===today?'today':'',ds===sel?'sel':'',d.getDay()===0?'sun':'',d.getDay()===6?'sat':'',hn?'hol':''].join(' ');
     h+=`<div class="${cls}" data-d="${ds}"><div class="n"><b>${d.getDate()}</b></div>${hn?`<div class="hn">${hn}</div>`:''}`
-      +evs.slice(0,3).map(e=>`<span class="chip" style="--c:${cat(e.cat).c}">${e.time?e.time+' ':''}${esc(e.title)}</span>`).join('')
+      +evs.slice(0,3).map(e=>`<span class="chip" style="--c:${cat(e.cat).c}" title="${esc(tspan(e)+' '+e.title)}">${e.time?e.time+' ':''}${esc(e.title)}</span>`).join('')
       +(evs.length>3?`<div class="more">ほか${evs.length-3}件</div>`:'')+`</div>`; }
   $('grid').innerHTML=h;
 }
@@ -260,7 +310,7 @@ function pick(ds){ sel=ds; const d=new Date(ds+'T00:00'); if(d.getMonth()!==view
 
 /* ---------------- day + form ---------------- */
 function evRow(e,withDate){ const c=cat(e.cat); const d=new Date(e.date+'T00:00');
-  return `<div class="ev" data-id="${esc(e.id)}" style="--c:${c.c}">${withDate?`<span class="d">${e.date.replace(/-/g,'/')}（${WD[d.getDay()]}）</span>`:''}<span class="t">${e.time||'終日'}</span><div class="b"><div class="ti">${esc(e.title)}</div>${e.memo?`<div class="me">${esc(e.memo)}</div>`:''}<div class="ca">${c.n}</div></div></div>`; }
+  return `<div class="ev" data-id="${esc(e.id)}" style="--c:${c.c}">${withDate?`<span class="d">${e.date.replace(/-/g,'/')}（${WD[d.getDay()]}）</span>`:''}<span class="t">${tspan(e)}</span><div class="b"><div class="ti">${esc(e.title)}</div>${e.memo?`<div class="me">${esc(e.memo)}</div>`:''}<div class="ca">${c.n}</div></div></div>`; }
 function drawDay(){
   const d=new Date(sel+'T00:00'), evs=(byDate()[sel]||[]), hn=holOf(d);
   $('dtitle').textContent=`${d.getMonth()+1}月${d.getDate()}日（${WD[d.getDay()]}）${hn?' '+hn:''}${sel===today?' ・今日':''}`;
@@ -269,15 +319,17 @@ function drawDay(){
 $('dlist').onclick=e=>{ const r=e.target.closest('.ev'); if(r) formEdit(r.dataset.id); };
 function drawCats(){ $('fCats').innerHTML=CATS.map(c=>`<button type="button" data-c="${c.id}" class="${c.id===fCat?'on':''}" style="--c:${c.c}">${c.n}</button>`).join(''); }
 $('fCats').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; fCat=b.dataset.c; drawCats(); };
-$('fAll').onchange=()=>{ $('fTime').disabled=$('fAll').checked; };
-function formNew(){ editing=null; $('fDate').value=sel; $('fTime').value=''; $('fAll').checked=true; $('fTime').disabled=true; $('fTitle').value=''; $('fMemo').value=''; fCat='plan'; drawCats();
+$('fAll').onchange=()=>{ $('fTime').disabled=$('fEnd').disabled=$('fAll').checked; };
+function formNew(){ editing=null; $('fDate').value=sel; $('fTime').value=''; $('fEnd').value=''; $('fAll').checked=true; $('fTime').disabled=$('fEnd').disabled=true; $('fTitle').value=''; $('fMemo').value=''; fCat='plan'; drawCats();
   $('fSave').textContent='追加する'; $('fDel').hidden=true; }
-function formEdit(id){ const e=EV.find(x=>x.id===id); if(!e) return; editing=id; $('fDate').value=e.date; $('fTime').value=e.time||''; $('fAll').checked=!e.time; $('fTime').disabled=!e.time;
+function formEdit(id){ const e=EV.find(x=>x.id===id); if(!e) return; editing=id; $('fDate').value=e.date; $('fTime').value=e.time||''; $('fEnd').value=e.end||''; $('fAll').checked=!e.time; $('fTime').disabled=$('fEnd').disabled=!e.time;
   $('fTitle').value=e.title; $('fMemo').value=e.memo||''; fCat=e.cat||'plan'; drawCats(); $('fSave').textContent='保存する'; $('fDel').hidden=false; $('fTitle').focus(); }
 $('fNew').onclick=()=>{ formNew(); $('fTitle').focus(); };
 $('form').onsubmit=async e=>{ e.preventDefault();
-  const ev={id:editing||newId(), date:$('fDate').value, time:$('fAll').checked?'':($('fTime').value||''), title:$('fTitle').value.trim(), cat:fCat, memo:$('fMemo').value.trim()};
+  const ev={id:editing||newId(), date:$('fDate').value, time:$('fAll').checked?'':($('fTime').value||''), end:'', title:$('fTitle').value.trim(), cat:fCat, memo:$('fMemo').value.trim()};
   if(!/^\d{4}-\d{2}-\d{2}$/.test(ev.date)||!ev.title) return toast('日付と予定を入れてください');
+  if(!$('fAll').checked&&!ev.time&&$('fEnd').value) return toast('始まる時刻も入れてください');
+  if(ev.time&&$('fEnd').value&&$('fEnd').value!==ev.time) ev.end=$('fEnd').value;
   try{ await put([ev]); toast(editing?'保存しました':'追加しました'); if(ev.date!==sel) pick(ev.date); else { formNew(); drawAll(); } }catch(err){ toast('保存できませんでした'); } };
 $('fDel').onclick=async()=>{ if(!editing||!confirm('この予定を消しますか？')) return; try{ await del([editing]); formNew(); toast('消しました'); }catch(e){ toast('消せませんでした'); } };
 
@@ -337,9 +389,10 @@ $('fImp').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!
 function normEv(e){ if(!e) return null;
   const date=String(e.date||'').trim(), title=String(e.title||'').replace(/[\x00-\x1f]/g,' ').trim(); if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!title) return null;
   let time=String(e.time||'').trim(); const tm=time.match(/^(\d{1,2}):(\d{2})/); time=tm&&+tm[1]<24&&+tm[2]<60?`${pad(+tm[1])}:${tm[2]}`:'';
+  let end=String(e.end||'').trim(); const em=end.match(/^(\d{1,2}):(\d{2})/); end=time&&em&&+em[1]<24&&+em[2]<60?`${pad(+em[1])}:${em[2]}`:''; if(end===time) end='';
   const cid=CATS.some(c=>c.id===e.cat)?e.cat:catByName(e.cat);
   let id=String(e.id||'').trim(); if(!/^[A-Za-z0-9_-]{1,40}$/.test(id)) id=hashId(date+'|'+time+'|'+title);
-  return {id,date,time,title:title.slice(0,200),cat:cid,memo:String(e.memo||'').slice(0,2000)}; }
+  return {id,date,time,end,title:title.slice(0,200),cat:cid,memo:String(e.memo||'').slice(0,2000)}; }
 function ask(name,evs,note){ return new Promise(res=>{
   $('dlgT').textContent='読み込み：'+name;
   $('dlgP').textContent=`予定 ${evs.length}件が見つかりました。同じIDの予定は上書きし、新しいものは追加します。`;
@@ -377,8 +430,8 @@ $('stRestore').onclick=()=>$('bBak').click();
 
 /* ---------------- .csv (for people without Excel: opens in Notepad, Google Sheets, LibreOffice) ---------------- */
 const csvCell=v=>{ const s=String(v??''); return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-function buildCsv(list){ const rows=[['日付','開始','予定','種類','メモ','ID']];
-  [...list].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||''))).forEach(e=>rows.push([e.date.replace(/-/g,'/'),e.time||'',e.title,cat(e.cat).n,e.memo||'',e.id]));
+function buildCsv(list){ const rows=[['日付','開始','終了','予定','種類','メモ','ID']];
+  [...list].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||''))).forEach(e=>rows.push([e.date.replace(/-/g,'/'),e.time||'',e.end||'',e.title,cat(e.cat).n,e.memo||'',e.id]));
   return '﻿'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n'; }
 function parseCsv(txt){
   txt=txt.replace(/^﻿/,''); const rows=[]; let row=[], cell='', q=false;
@@ -387,10 +440,10 @@ function parseCsv(txt){
     else if(ch==='"') q=true; else if(ch===','){ row.push(cell); cell=''; } else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&txt[i+1]==='\n') i++; row.push(cell); rows.push(row); row=[]; cell=''; } else cell+=ch; }
   if(cell||row.length){ row.push(cell); rows.push(row); }
   const head=(rows.shift()||[]).map(h=>h.trim()), ix=k=>head.findIndex(h=>h.startsWith(k));
-  const iD=ix('日付'), iT=ix('開始')>=0?ix('開始'):ix('時刻'), iN=ix('予定'), iC=ix('種類'), iM=ix('メモ'), iI=ix('ID');
+  const iD=ix('日付'), iT=ix('開始')>=0?ix('開始'):ix('時刻'), iE=ix('終了'), iN=ix('予定'), iC=ix('種類'), iM=ix('メモ'), iI=ix('ID');
   if(iD<0||iN<0) throw new Error('1行目の見出し（日付・予定）が見つかりません');
   return rows.map(r=>{ const m=String(r[iD]||'').trim().match(/^(\d{4})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/); if(!m) return null;
-    return {date:`${m[1]}-${pad(+m[2])}-${pad(+m[3])}`, time:iT>=0?r[iT]:'', title:r[iN], cat:iC>=0?r[iC]:'', memo:iM>=0?r[iM]:'', id:iI>=0?r[iI]:''}; }).filter(Boolean);
+    return {date:`${m[1]}-${pad(+m[2])}-${pad(+m[3])}`, time:iT>=0?r[iT]:'', end:iE>=0?r[iE]:'', title:r[iN], cat:iC>=0?r[iC]:'', memo:iM>=0?r[iM]:'', id:iI>=0?r[iI]:''}; }).filter(Boolean);
 }
 
 /* ---------------- printing (also "save as PDF" in the print dialog) ---------------- */
@@ -406,10 +459,10 @@ function printSheet(kind){
   else if(kind==='month'){ const first=new Date(y,m,1), lead=first.getDay(), cells=Math.ceil((lead+new Date(y,m+1,0).getDate())/7)*7;
     h=`<div class="pr"><h1>${y}年 ${m+1}月</h1><table class="pr-big"><tr>${WD.map((w,i)=>`<th class="${i===0?'sun':i===6?'sat':''}">${w}</th>`).join('')}</tr><tr>`;
     for(let c=0;c<cells;c++){ if(c&&c%7===0) h+='</tr><tr>'; const d=new Date(y,m,1-lead+c), ds=ymd(d), hn=holOf(d), oth=d.getMonth()!==m;
-      h+=`<td><div class="dn ${oth?'oth':(d.getDay()===0||hn)?'sun':d.getDay()===6?'sat':''}">${d.getDate()}</div>${hn&&!oth?`<div class="hn">${hn}</div>`:''}${oth?'':(bd[ds]||[]).map(e=>`<span class="it" style="--c:${cat(e.cat).c}">${e.time?e.time+' ':''}${esc(e.title)}</span>`).join('')}</td>`; }
+      h+=`<td><div class="dn ${oth?'oth':(d.getDay()===0||hn)?'sun':d.getDay()===6?'sat':''}">${d.getDate()}</div>${hn&&!oth?`<div class="hn">${hn}</div>`:''}${oth?'':(bd[ds]||[]).map(e=>`<span class="it" style="--c:${cat(e.cat).c}">${e.time?tspan(e)+' ':''}${esc(e.title)}</span>`).join('')}</td>`; }
     h+='</tr></table></div>'; }
   else { const a=EV.filter(e=>e.date.startsWith(y+'-')).sort((x,z)=>(x.date+(x.time||'')).localeCompare(z.date+(z.time||'')));
-    h=`<div class="pr"><h1>${y}年の予定（${a.length}件）</h1><table class="pr-list"><tr><th>日付</th><th>時刻</th><th>予定</th><th>種類</th><th>メモ</th></tr>`+a.map(e=>{ const d=new Date(e.date+'T00:00'); return `<tr><td>${e.date.replace(/-/g,'/')}（${WD[d.getDay()]}）</td><td>${e.time||'終日'}</td><td>${esc(e.title)}</td><td>${cat(e.cat).n}</td><td>${esc(e.memo||'')}</td></tr>`; }).join('')+'</table></div>'; }
+    h=`<div class="pr"><h1>${y}年の予定（${a.length}件）</h1><table class="pr-list"><tr><th>日付</th><th>時刻</th><th>予定</th><th>種類</th><th>メモ</th></tr>`+a.map(e=>{ const d=new Date(e.date+'T00:00'); return `<tr><td>${e.date.replace(/-/g,'/')}（${WD[d.getDay()]}）</td><td>${tspan(e)}</td><td>${esc(e.title)}</td><td>${cat(e.cat).n}</td><td>${esc(e.memo||'')}</td></tr>`; }).join('')+'</table></div>'; }
   $('printArea').innerHTML=h; setTimeout(()=>window.print(),60);
 }
 $('bPrn').onclick=e=>{ e.stopPropagation(); $('mExp').classList.remove('open'); $('mPrn').classList.toggle('open'); };
@@ -423,7 +476,8 @@ function buildIcs(list){
   const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//universal-widget-wallpaper//events//JA','CALSCALE:GREGORIAN'];
   const now=new Date(), st=`${now.getUTCFullYear()}${pad(now.getUTCMonth()+1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}00Z`;
   for(const e of list){ const d=e.date.replace(/-/g,''); L.push('BEGIN:VEVENT',`UID:${e.id}@universal-widget-wallpaper`,`DTSTAMP:${st}`);
-    if(e.time){ const [h,m]=e.time.split(':').map(Number), end=new Date(+e.date.slice(0,4),+e.date.slice(5,7)-1,+e.date.slice(8,10),h+1,m);
+    if(e.time){ const [h,m]=e.time.split(':').map(Number), [eh,em]=(e.end||'0:0').split(':').map(Number), y0=+e.date.slice(0,4), m0=+e.date.slice(5,7)-1, d0=+e.date.slice(8,10);
+      const end=e.end?new Date(y0,m0,d0+(eh*60+em<=h*60+m?1:0),eh,em):new Date(y0,m0,d0,h+1,m);
       L.push(`DTSTART:${d}T${pad(h)}${pad(m)}00`,`DTEND:${ymd(end).replace(/-/g,'')}T${pad(end.getHours())}${pad(end.getMinutes())}00`); }
     else { const n=new Date(e.date+'T00:00'); n.setDate(n.getDate()+1); L.push(`DTSTART;VALUE=DATE:${d}`,`DTEND;VALUE=DATE:${ymd(n).replace(/-/g,'')}`); }
     L.push(`SUMMARY:${icsText(e.title)}`); if(e.memo) L.push(`DESCRIPTION:${icsText(e.memo)}`); L.push(`CATEGORIES:${icsText(cat(e.cat).n)}`,'END:VEVENT'); }
@@ -437,8 +491,11 @@ function parseIcs(txt){
     else if(cur){ if(name==='DTSTART'){ const m=val.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?/); if(m){
           if(m[4]&&m[7]){ const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5])); cur.date=ymd(d); cur.time=`${pad(d.getHours())}:${pad(d.getMinutes())}`; }
           else { cur.date=`${m[1]}-${m[2]}-${m[3]}`; cur.time=m[4]?`${m[4]}:${m[5]}`:''; } } }
+      else if(name==='DTEND'){ const m=val.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})\d{2}(Z)?/); if(m) cur.endAt=m[6]?new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5])):new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]); }
       else if(name==='SUMMARY') cur.title=un(val); else if(name==='DESCRIPTION') cur.memo=un(val); else if(name==='CATEGORIES') cur.cat=un(val).split(',')[0];
       else if(name==='UID') cur.id=val.replace(/@universal-widget-wallpaper$/,''); } }
+  // keep the end time when the event ends within a day of its start
+  for(const e of out){ if(e.endAt&&e.date&&e.time){ const d=e.endAt-new Date(e.date+'T'+e.time); if(d>0&&d<864e5) e.end=`${pad(e.endAt.getHours())}:${pad(e.endAt.getMinutes())}`; } delete e.endAt; }
   return out;
 }
 
@@ -468,7 +525,7 @@ const sheetXml=(rows,extra)=>`<?xml version="1.0" encoding="UTF-8" standalone="y
 async function buildXlsx(list,noteText){
   const evs=[...list].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
   // plenty of empty rows so the file keeps working for years without adding rows (rows cannot be added on the locked sheet)
-  const DATA_ROWS=Math.max(evs.length+1000,2000), LAST=DATA_ROWS+1, EVD=`'予定'!$A$2:$A$${LAST}`, EVT=`'予定'!$D$2:$D$${LAST}`;
+  const DATA_ROWS=Math.max(evs.length+1000,2000), LAST=DATA_ROWS+1, EVD=`'予定'!$A$2:$A$${LAST}`, EVT=`'予定'!$E$2:$E$${LAST}`;
   const now=new Date(), Y0=now.getFullYear();
   // holidays for the years around now (the 祝日 sheet; exporting again later adds the newer years)
   const hols=[]; for(let y=Y0-1;y<=Y0+10;y++) for(let d=new Date(y,0,1);d.getFullYear()===y;d.setDate(d.getDate()+1)){ const h=holOf(d); if(h) hols.push([ymd(d),h]); }
@@ -530,15 +587,15 @@ async function buildXlsx(list,noteText){
   let cfP=0; const cfx=(sq,rules)=>`<conditionalFormatting sqref="${sq}">${rules.map(([dxf,f])=>`<cfRule type="expression" dxfId="${dxf}" priority="${++cfP}"><formula>${X(f)}</formula></cfRule>`).join('')}</conditionalFormatting>`;
 
   // ---- 予定 ----
-  const HEAD=['日付','曜日','開始','予定','種類','メモ','ID（変えないでください）'];
+  const HEAD=['日付','曜日','開始','終了','予定','種類','メモ','ID（変えないでください）'];
   let r1=`<row r="1" ht="22" customHeight="1">${HEAD.map((h,i)=>cStr(colL(i)+1,h,1)).join('')}</row>`;
   for(let i=0;i<DATA_ROWS;i++){ const r=i+2, e=evs[i];
     const wdF=`IF(A${r}="","",CHOOSE(WEEKDAY(A${r}),"日","月","火","水","木","金","土"))`;
-    if(e) r1+=`<row r="${r}">${cNum('A'+r,serial(e.date),22)}${cF('B'+r,wdF,4,true)}${e.time?cNum('C'+r,tser(e.time),23):`<c r="C${r}" s="23"/>`}${cStr('D'+r,e.title,24)}${cStr('E'+r,cat(e.cat).n,24)}${cStr('F'+r,e.memo||'',25)}${cStr('G'+r,e.id,12)}</row>`;
-    else r1+=`<row r="${r}"><c r="A${r}" s="22"/>${cF('B'+r,wdF,4,true)}<c r="C${r}" s="23"/><c r="D${r}" s="24"/><c r="E${r}" s="24"/><c r="F${r}" s="25"/><c r="G${r}" s="12"/></row>`; }
-  const s1=sheetXml(r1,{pre:`<sheetPr><tabColor rgb="FFFF9B85"/></sheetPr><dimension ref="A1:G${LAST}"/><sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/><cols><col min="1" max="1" width="13" customWidth="1"/><col min="2" max="2" width="8.5" customWidth="1"/><col min="3" max="3" width="9.5" customWidth="1"/><col min="4" max="4" width="34" customWidth="1"/><col min="5" max="5" width="10" customWidth="1"/><col min="6" max="6" width="44" customWidth="1"/><col min="7" max="7" width="27" customWidth="1"/></cols>`,
-    post:PROT+`<autoFilter ref="A1:G${LAST}"/>`+cfx(`A2:G${LAST}`,[[1,'AND($A2<>"",$A2=TODAY())'],[0,'AND($A2<>"",$A2<TODAY())']])
-      +`<dataValidations count="3"><dataValidation type="list" allowBlank="1" showErrorMessage="1" errorTitle="種類" error="一覧から選んでください" sqref="E2:E${LAST}"><formula1>'種類'!$A$2:$A$${CATS.length+1}</formula1></dataValidation><dataValidation type="date" operator="greaterThan" allowBlank="1" showErrorMessage="1" errorTitle="日付" error="日付を入れてください（例 2026/11/6）" sqref="A2:A${LAST}"><formula1>1</formula1></dataValidation><dataValidation type="time" operator="between" allowBlank="1" showErrorMessage="1" errorTitle="開始" error="時刻を入れてください（例 9:30）。終日なら空のままにします" sqref="C2:C${LAST}"><formula1>0</formula1><formula2>0.999988425925926</formula2></dataValidation></dataValidations><pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToHeight="0"/>`});
+    if(e) r1+=`<row r="${r}">${cNum('A'+r,serial(e.date),22)}${cF('B'+r,wdF,4,true)}${e.time?cNum('C'+r,tser(e.time),23):`<c r="C${r}" s="23"/>`}${e.end?cNum('D'+r,tser(e.end),23):`<c r="D${r}" s="23"/>`}${cStr('E'+r,e.title,24)}${cStr('F'+r,cat(e.cat).n,24)}${cStr('G'+r,e.memo||'',25)}${cStr('H'+r,e.id,12)}</row>`;
+    else r1+=`<row r="${r}"><c r="A${r}" s="22"/>${cF('B'+r,wdF,4,true)}<c r="C${r}" s="23"/><c r="D${r}" s="23"/><c r="E${r}" s="24"/><c r="F${r}" s="24"/><c r="G${r}" s="25"/><c r="H${r}" s="12"/></row>`; }
+  const s1=sheetXml(r1,{pre:`<sheetPr><tabColor rgb="FFFF9B85"/></sheetPr><dimension ref="A1:H${LAST}"/><sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/><cols><col min="1" max="1" width="13" customWidth="1"/><col min="2" max="2" width="8.5" customWidth="1"/><col min="3" max="4" width="9.5" customWidth="1"/><col min="5" max="5" width="34" customWidth="1"/><col min="6" max="6" width="10" customWidth="1"/><col min="7" max="7" width="44" customWidth="1"/><col min="8" max="8" width="27" customWidth="1"/></cols>`,
+    post:PROT+`<autoFilter ref="A1:H${LAST}"/>`+cfx(`A2:H${LAST}`,[[1,'AND($A2<>"",$A2=TODAY())'],[0,'AND($A2<>"",$A2<TODAY())']])
+      +`<dataValidations count="3"><dataValidation type="list" allowBlank="1" showErrorMessage="1" errorTitle="種類" error="一覧から選んでください" sqref="F2:F${LAST}"><formula1>'種類'!$A$2:$A$${CATS.length+1}</formula1></dataValidation><dataValidation type="date" operator="greaterThan" allowBlank="1" showErrorMessage="1" errorTitle="日付" error="日付を入れてください（例 2026/11/6）" sqref="A2:A${LAST}"><formula1>1</formula1></dataValidation><dataValidation type="time" operator="between" allowBlank="1" showErrorMessage="1" errorTitle="時刻" error="時刻を入れてください（例 9:30）。終日なら空のままにします" sqref="C2:D${LAST}"><formula1>0</formula1><formula2>0.999988425925926</formula2></dataValidation></dataValidations><pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToHeight="0"/>`});
 
   // ---- 年間 (12 months on one sheet; the year cell starts as "this year" and can be changed) ----
   let r2=`<row r="1" ht="28" customHeight="1">${cStr('A1','年間カレンダー',8)}</row>`;
@@ -580,7 +637,7 @@ async function buildXlsx(list,noteText){
 
   // ---- 種類 ----
   let r4=`<row r="1">${cStr('A1','種類',1)}${cStr('B1','色',1)}${cStr('C1','件数',1)}</row>`;
-  CATS.forEach((c,i)=>{ const r=i+2; r4+=`<row r="${r}">${cStr('A'+r,c.n,4)}<c r="B${r}" s="${14+i}"/>${cF('C'+r,`COUNTIF('予定'!$E$2:$E$${LAST},A${r})`,4)}</row>`; });
+  CATS.forEach((c,i)=>{ const r=i+2; r4+=`<row r="${r}">${cStr('A'+r,c.n,4)}<c r="B${r}" s="${14+i}"/>${cF('C'+r,`COUNTIF('予定'!$F$2:$F$${LAST},A${r})`,4)}</row>`; });
   const s4=sheetXml(r4,{pre:`<sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="18"/><cols><col min="1" max="1" width="14" customWidth="1"/><col min="2" max="2" width="8" customWidth="1"/><col min="3" max="3" width="8" customWidth="1"/></cols>`,post:PROT});
   // ---- 祝日 ----
   let r5=`<row r="1">${cStr('A1','日付',1)}${cStr('B1','祝日',1)}</row>`;
@@ -592,21 +649,21 @@ async function buildXlsx(list,noteText){
   // ---- 使い方 ----
   const help=['このファイルについて','「万能ウィジェット壁紙」の予定ノートから書き出した予定表です。Excel がなくても、Google スプレッドシート・LibreOffice・Excel for the web（無料）で開けます。','',
     '使い方','1. 「予定」シートで予定を書き足す・書き換える。消すときは、その行の日付と予定を消す（行の削除・追加はできません。空の行は2000行以上あります）',
-    '2. 日付（例 2026/11/6）・開始（例 9:30。終日なら空）・予定・種類（一覧から選ぶ）・メモを入れる。曜日は自動で入ります',
+    '2. 日付（例 2026/11/6）・開始（例 9:30。終日なら空）・終了（例 11:00。なくてもOK）・予定・種類（一覧から選ぶ）・メモを入れる。曜日は自動で入ります',
     '3. 保存したら、予定ノートの「読み込む」でこのファイルを選ぶ','4. 「置き換える」を選ぶと、このファイルで消した予定は予定ノートからも消えます（選ばなければ追加・上書きだけ）','',
     'ほかのシート','年間 … 12か月分のカレンダー。C2（年）は最初「今年」になっていて、書きかえるとその年になります。予定のある日は色付き',
     '月間 … 1か月のカレンダー。B2（年）と D2（月）は最初「今月」。D2 は一覧から選べます。祝日と予定が出ます',
     '種類 … 種類ごとの色と件数　／　祝日 … 書き出した年の前後10年分（年が進んだら、予定ノートからもう一度書き出すと更新されます）',
     '付箋 … カレンダーの下の付箋メモ。ここを書きかえて読み込むと付箋も変わります','',
     '注意','・パスワード・住所・電話番号などの個人情報は書かないでください（このファイルは暗号化されていません）',
-    '・こわれないように、入力するマス以外はロックしています（パスワードはありません）。書きかえられるのは、予定シートの「日付・開始・予定・種類・メモ」、年間・月間の年と月（オレンジのマス）、付箋だけです',
+    '・こわれないように、入力するマス以外はロックしています（パスワードはありません）。書きかえられるのは、予定シートの「日付・開始・終了・予定・種類・メモ」、年間・月間の年と月（オレンジのマス）、付箋だけです',
     '・「ID」は予定を見分けるための番号です。新しい行は空のままでOK','・テンプレートとして作り込みたいときは、［校閲］→［シート保護の解除］で解除できます（パスワードなし）'];
   const HEADS=[0,3,9,15];
   let r7=''; help.forEach((t,i)=>{ const st=HEADS.includes(i)?8:13; r7+=`<row r="${i+1}"${st===8?' ht="26" customHeight="1"':''}>${cStr('A'+(i+1),t,st)}</row>`; });
   const s7=sheetXml(r7,{pre:`<sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="20"/><cols><col min="1" max="1" width="120" customWidth="1"/></cols>`,post:PROT});
 
   const sheets=[['予定',s1],['年間',s2],['月間',s3],['種類',s4],['祝日',s5],['付箋',s6],['使い方',s7]];
-  const wb=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><workbookPr/><workbookProtection lockStructure="1"/><bookViews><workbookView activeTab="0"/></bookViews><sheets>${sheets.map(([n],i)=>`<sheet name="${n}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'予定'!$A$1:$G$${LAST}</definedName></definedNames><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`;
+  const wb=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><workbookPr/><workbookProtection lockStructure="1"/><bookViews><workbookView activeTab="0"/></bookViews><sheets>${sheets.map(([n],i)=>`<sheet name="${n}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'予定'!$A$1:$H$${LAST}</definedName></definedNames><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`;
   const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
   const ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;
   const root=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
@@ -643,17 +700,22 @@ async function readXlsx(buf){
       (rows[m[2]]=rows[m[2]]||{})[m[1]]=val; }); return rows; };
   const sh=sheets.find(s=>s.name==='予定')||sheets[0]; if(!sh) throw new Error('「予定」シートが見つかりません');
   const rows=read(sh.path), head=rows['1']||{}, col={};
-  for(const L in head){ const h=String(head[L]||'').trim(); if(h.startsWith('日付')) col.date=L; else if(h.startsWith('開始')||h.startsWith('時刻')) col.time=L; else if(h==='予定'||h.startsWith('予定')||h.startsWith('タイトル')) col.title=L; else if(h.startsWith('種類')) col.cat=L; else if(h.startsWith('メモ')) col.memo=L; else if(h.startsWith('ID')) col.id=L; }
+  for(const L in head){ const h=String(head[L]||'').trim(); if(h.startsWith('日付')) col.date=L; else if(h.startsWith('開始')||h.startsWith('時刻')) col.time=L; else if(h.startsWith('終了')) col.end=L; else if(h==='予定'||h.startsWith('予定')||h.startsWith('タイトル')) col.title=L; else if(h.startsWith('種類')) col.cat=L; else if(h.startsWith('メモ')) col.memo=L; else if(h.startsWith('ID')) col.id=L; }
   if(!col.date||!col.title) throw new Error('1行目の見出し（日付・予定）が見つかりません');
   const toDate=v=>{ if(typeof v==='number'&&v>0){ const d=new Date(Date.UTC(1899,11,30)+Math.floor(v)*864e5); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; }
     const m=String(v||'').trim().match(/^(\d{4})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/); return m?`${m[1]}-${pad(+m[2])}-${pad(+m[3])}`:''; };
   const toTime=v=>{ if(typeof v==='number'&&v>=0){ let mins=Math.round((v%1)*1440)%1440; return `${pad(Math.floor(mins/60))}:${pad(mins%60)}`; } const m=String(v||'').trim().match(/^(\d{1,2})[:：時](\d{2})?/); return m?`${pad(+m[1])}:${m[2]||'00'}`:''; };
   const events=[]; for(const rn of Object.keys(rows).map(Number).sort((a,b)=>a-b)){ if(rn<2) continue; const r=rows[rn];
     const date=toDate(r[col.date]), title=String(r[col.title]??'').trim(); if(!date||!title) continue;
-    events.push({id:col.id?String(r[col.id]??'').trim():'', date, time:col.time&&r[col.time]!==''&&r[col.time]!=null?toTime(r[col.time]):'', title, cat:col.cat?String(r[col.cat]??''):'', memo:col.memo?String(r[col.memo]??''):''}); }
+    events.push({id:col.id?String(r[col.id]??'').trim():'', date, time:col.time&&r[col.time]!==''&&r[col.time]!=null?toTime(r[col.time]):'', end:col.end&&r[col.end]!==''&&r[col.end]!=null?toTime(r[col.end]):'', title, cat:col.cat?String(r[col.cat]??''):'', memo:col.memo?String(r[col.memo]??''):''}); }
   let note=null; const ns=sheets.find(s=>s.name==='付箋'); if(ns){ const nr=read(ns.path); note=String(((nr['2']||{}).A)??''); }
   return {events,note};
 }
+
+/* ---------------- light / dark ---------------- */
+function themeBtn(){ const light=document.documentElement.dataset.theme==='light'; $('bTheme').textContent=light?'🌙':'☀'; $('bTheme').title=(light?'ダーク':'ライト')+'にします（設定エディタの「見た目」と同じ設定です）'; }
+$('bTheme').onclick=()=>{ UWW_UI.set('theme',document.documentElement.dataset.theme==='light'?'dark':'light'); themeBtn(); };
+addEventListener('storage',e=>{ if(e.key==='uww-ui'){ UWW_UI.apply(UWW_UI.get()); themeBtn(); } }); themeBtn();
 
 /* ---------------- start ---------------- */
 (async()=>{
