@@ -12,7 +12,7 @@
 $port = 39217
 # 配布者へ: ワークショップ公開後、その作品IDをここに入れると、その壁紙は確認なしで接続されます（例: @('3123456789')）
 $OfficialWorkshopIds = @('3834675035', '3834059703')
-$HelperVersion = '1.4'                            # shown in the editor and compared with the newest release on GitHub
+$HelperVersion = '1.5'                            # shown in the editor and compared with the newest release on GitHub
 
 $mutex = New-Object System.Threading.Mutex($false, "Global\UniversalWidgetWallpaperHelper")
 if (-not $mutex.WaitOne(0)) { exit }
@@ -23,6 +23,55 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 public static class UwwSys {
+    // ---- the live view in the editor: find the windows Wallpaper Engine draws the wallpaper into ----
+    public delegate bool EnumProc(IntPtr h, IntPtr l);
+    [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc f, IntPtr l);
+    [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr p, EnumProc f, IntPtr l);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, System.Text.StringBuilder s, int n);
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
+    public struct RECT { public int L, T, R, B; }
+    // ---- layout mode: hide the desktop icons for a while, so dragging a widget does not select icons ----
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
+    [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
+    static IntPtr IconsView() {
+        IntPtr dv = FindWindowEx(FindWindowEx(IntPtr.Zero, IntPtr.Zero, "Progman", null), IntPtr.Zero, "SHELLDLL_DefView", null), w = IntPtr.Zero;
+        while (dv == IntPtr.Zero) { w = FindWindowEx(IntPtr.Zero, w, "WorkerW", null); if (w == IntPtr.Zero) break; dv = FindWindowEx(w, IntPtr.Zero, "SHELLDLL_DefView", null); }
+        return dv == IntPtr.Zero ? IntPtr.Zero : FindWindowEx(dv, IntPtr.Zero, "SysListView32", null);
+    }
+    static IntPtr hiddenView = IntPtr.Zero; static System.Threading.Timer iconTimer; static readonly object iconLock = new object();
+    // hide = true must be repeated: the icons come back by themselves 20 s after the last call (even if the wallpaper is gone)
+    public static bool Icons(bool hide) {
+        lock (iconLock) {
+            if (hide) {
+                if (hiddenView == IntPtr.Zero) { var lv = IconsView(); if (lv == IntPtr.Zero || !IsWindowVisible(lv)) return false; ShowWindow(lv, 0); hiddenView = lv; }
+                if (iconTimer == null) iconTimer = new System.Threading.Timer(_ => Icons(false));
+                iconTimer.Change(20000, System.Threading.Timeout.Infinite); return true;
+            }
+            if (iconTimer != null) iconTimer.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+            if (hiddenView != IntPtr.Zero) { ShowWindow(hiddenView, 5); hiddenView = IntPtr.Zero; }
+            return true;
+        }
+    }
+    public static void IconsBack() { var lv = IconsView(); if (lv != IntPtr.Zero && !IsWindowVisible(lv)) ShowWindow(lv, 5); }
+    // each entry: window, left, top, width, height, kind (2 = the drawn surface, 1 = other, 0 = browser frame)
+    public static List<long[]> WallWindows(int[] pids) {
+        var set = new HashSet<int>(pids); var tops = new List<IntPtr>(); var res = new List<long[]>();
+        EnumProc addTop = (h, l) => { tops.Add(h); return true; };
+        EnumWindows(addTop, IntPtr.Zero);
+        EnumProc check = (h, l) => {
+            uint pid; GetWindowThreadProcessId(h, out pid);
+            if (!set.Contains((int)pid) || !IsWindowVisible(h)) return true;
+            RECT r; GetWindowRect(h, out r); int w = r.R - r.L, ht = r.B - r.T;
+            if (w < 640 || ht < 360) return true;
+            var sb = new System.Text.StringBuilder(128); GetClassName(h, sb, 128); string c = sb.ToString();
+            int kind = c == "Intermediate D3D Window" ? 2 : c.StartsWith("Chrome_") ? 0 : 1;
+            res.Add(new long[] { h.ToInt64(), r.L, r.T, w, ht, kind }); return true; };
+        foreach (var t in tops) { check(t, IntPtr.Zero); EnumChildWindows(t, check, IntPtr.Zero); }
+        return res;
+    }
     [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
     public static void Tap(byte vk) { keybd_event(vk, 0, 1, UIntPtr.Zero); keybd_event(vk, 0, 3, UIntPtr.Zero); }
 
@@ -336,6 +385,27 @@ function Sync-Wallpapers {
     $script:root = $inCfg | Sort-Object { try { (Get-Item -LiteralPath (Join-Path $_ 'index.html')).LastWriteTimeUtc } catch { [DateTime]::MinValue } } -Descending | Select-Object -First 1
 }
 
+# ---- live view: a small picture of the wallpaper as Wallpaper Engine shows it right now (only the wallpaper layer, never other windows) ----
+function Live-Screens {
+    $pids = @(Get-Process wallpaper64, wallpaper32, webwallpaper64, webwallpaper32 -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
+    if (-not $pids.Count) { return @() }
+    $by = @{}
+    foreach ($w in [UwwSys]::WallWindows([int[]]$pids)) { $k = "$($w[1]),$($w[2])"; if (-not $by.ContainsKey($k) -or $w[5] -gt $by[$k][5]) { $by[$k] = $w } }
+    return @($by.Values | Sort-Object { $_[1] }, { $_[2] })
+}
+function Live-Shot([int]$i) {
+    $list = @(Live-Screens); if ($i -lt 0 -or $i -ge $list.Count) { return $null }
+    $w = $list[$i]; Add-Type -AssemblyName System.Drawing
+    $bmp = New-Object System.Drawing.Bitmap ([int]$w[3]), ([int]$w[4]); $g = [System.Drawing.Graphics]::FromImage($bmp); $dc = $g.GetHdc()
+    try { [void][UwwSys]::PrintWindow([IntPtr]$w[0], $dc, 2) } finally { $g.ReleaseHdc($dc); $g.Dispose() }
+    $tw = 960; $th = [int]($tw * $w[4] / $w[3]); $small = New-Object System.Drawing.Bitmap $tw, $th
+    $g2 = [System.Drawing.Graphics]::FromImage($small); $g2.InterpolationMode = 'HighQualityBilinear'; $g2.DrawImage($bmp, 0, 0, $tw, $th); $g2.Dispose(); $bmp.Dispose()
+    $enc = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' } | Select-Object -First 1
+    $ep = New-Object System.Drawing.Imaging.EncoderParameters 1; $ep.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality), 72L
+    $ms = New-Object IO.MemoryStream; $small.Save($ms, $enc, $ep); $small.Dispose()
+    return ,$ms.ToArray()
+}
+
 function Resolve-Target([string]$t) {
     $t = $t.Trim().Trim('"')
     if (-not $t) { return $null }
@@ -427,6 +497,9 @@ $token = ($tb | ForEach-Object { $_.ToString('x2') }) -join ''
 try { [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'token.js'), "window.UWW_TOKEN='$token';", $utf8) } catch { }
 Log "helper v7 started"
 try { Sync-Wallpapers } catch { Log "sync error: $_" }
+# the icons were hidden for layout mode when the helper was stopped last time: show them again
+$iconsFlag = Join-Path $cfgDir 'icons-hidden.flag'
+if (Test-Path $iconsFlag) { try { [UwwSys]::IconsBack() } catch { }; Remove-Item $iconsFlag -Force -ErrorAction SilentlyContinue; Log 'desktop icons shown again' }
 [void][UwwSys]::Cpu()
 $lastNet = Get-NetBytes; $lastNetT = [DateTime]::UtcNow
 $seen = @{}
@@ -476,7 +549,7 @@ while ($listener.IsListening) {
             $res.Headers.Add('Access-Control-Allow-Headers', 'X-Uww-Token, Content-Type')
             $res.Headers.Add('Access-Control-Allow-Private-Network', 'true')
         }
-        $status = 200; $body = 'ok'; $ctype = 'text/plain; charset=utf-8'
+        $status = 200; $body = 'ok'; $ctype = 'text/plain; charset=utf-8'; $bin = $null
 
         if ($req.HttpMethod -eq 'OPTIONS') { $status = $(if ($trusted) { 204 } else { 403 }); $body = '' }
         elseif ($cmd -eq 'ping') { $body = 'ok v7' }
@@ -547,6 +620,23 @@ while ($listener.IsListening) {
         elseif ($cmd -eq 'screens') {
             if (-not $fromEditor) { $status = 403; $body = 'forbidden' } else { $body = Insts-Json; $ctype = 'application/json; charset=utf-8' }
         }
+        elseif ($cmd -eq 'desktop-icons') {
+            # layout mode on the wallpaper: hide the desktop icons (repeat every few seconds; they come back 20 s after the last one)
+            $hide = (Get-Query $req.RawUrl 'hide') -eq '1'
+            $ok = [UwwSys]::Icons($hide)
+            if ($hide -and $ok) { if (-not (Test-Path $iconsFlag)) { [IO.File]::WriteAllText($iconsFlag, 'layout') } } elseif (-not $hide) { Remove-Item $iconsFlag -Force -ErrorAction SilentlyContinue }
+            $body = $(if ($ok) { 'ok' } else { 'no' })
+        }
+        elseif ($cmd -eq 'live-screens') {
+            # editor only: which screens show a wallpaper (left to right)
+            if (-not $fromEditor) { $status = 403; $body = 'forbidden' }
+            else { $n = 0; $body = (ConvertTo-Json -Compress @(@(Live-Screens) | ForEach-Object { [ordered]@{ i = $n++; x = $_[1]; y = $_[2]; w = $_[3]; h = $_[4] } })); if (-not $body.StartsWith('[')) { $body = "[$body]" }; $ctype = 'application/json; charset=utf-8' }
+        }
+        elseif ($cmd -eq 'live') {
+            # editor only: a picture of that screen's wallpaper (made on request, kept nowhere)
+            if (-not $fromEditor) { $status = 403; $body = 'forbidden' }
+            else { $i = 0; [void][int]::TryParse((Get-Query $req.RawUrl 'i'), [ref]$i); $bin = Live-Shot $i; if ($bin) { $ctype = 'image/jpeg' } else { $status = 404; $body = 'no wallpaper' } }
+        }
         elseif ($cmd -eq 'wallpapers') {
             # editor only: is any wallpaper connected? (so the editor can tell "not connected yet" from "helper not running")
             if (-not $fromEditor) { $status = 403; $body = 'forbidden' }
@@ -598,8 +688,9 @@ while ($listener.IsListening) {
         if ($status -ge 400) { Log "$($req.HttpMethod) /$cmd origin=[$origin] -> $status" }
         elseif ($trusted -and -not $seen.ContainsKey($origin)) { $seen[$origin] = 1; Log "accepted origin=[$origin] /$cmd" }
         $res.StatusCode = $status; $res.ContentType = $ctype
-        $buf = [System.Text.Encoding]::UTF8.GetBytes($body)
+        $buf = $(if ($bin) { $bin } else { [System.Text.Encoding]::UTF8.GetBytes($body) })
         if ($buf.Length) { $res.OutputStream.Write($buf, 0, $buf.Length) }
         $res.Close()
     } catch { Log "error: $_"; try { $res.StatusCode = 500; $res.Close() } catch { } }
 }
+try { [void][UwwSys]::Icons($false); Remove-Item $iconsFlag -Force -ErrorAction SilentlyContinue } catch { }

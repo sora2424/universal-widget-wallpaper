@@ -39,6 +39,23 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 26px;
 .tool{border:0;background:none;color:var(--t2);cursor:pointer;padding:6px 4px;font-size:13.5px;border-bottom:1px solid transparent;white-space:nowrap}
 .tool:hover{color:var(--t1);border-bottom-color:var(--t2)}
 .tool.warn:hover{color:#ffb4a6;border-bottom-color:#ffb4a6}
+.tool.sub{font-size:12.5px;opacity:.75}
+.menu{position:relative}
+.menu .pop{position:absolute;right:0;top:calc(100% + 8px);z-index:70;display:none;min-width:310px;padding:6px;border-radius:10px;background:#221d24;border:1px solid rgba(255,255,255,.12);box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.menu.open .pop{display:block}
+.menu .pop button{display:block;width:100%;text-align:left;border:0;background:none;color:var(--t1);padding:9px 11px;border-radius:7px;cursor:pointer;font-size:13.5px}
+.menu .pop button:hover{background:rgba(255,255,255,.07)}
+.menu .pop button small{display:block;margin-top:3px;font-size:11.5px;color:var(--t3);line-height:1.5}
+.menu .pop button.danger b{color:#ffb4a6}
+.cfm{position:fixed;inset:0;z-index:90;display:none;place-items:center;background:rgba(10,8,12,.62)}
+.cfm.show{display:grid}
+.cfm-box{width:min(440px,90vw);padding:22px 22px 18px;border-radius:12px;background:#f0e6d6;color:#2a2018;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.cfm-box h3{margin:0 0 8px;font-size:16px}
+.cfm-box p{margin:0 0 18px;font-size:13.5px;line-height:1.75;white-space:pre-line}
+.cfm-b{display:flex;justify-content:flex-end;gap:10px}
+.cfm-b button{border:0;border-radius:20px;padding:8px 16px;font-size:13.5px;cursor:pointer;background:rgba(0,0,0,.08);color:#2a2018}
+.cfm-b button.go{background:#2a2018;color:#fff}
+.cfm-b button.go.danger{background:#b3402a}
 .scrsel{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t3);padding-left:18px;border-left:1px solid var(--rule)}
 .scrsel .tool.on{color:var(--acc);border-bottom-color:var(--acc)}
 
@@ -156,6 +173,13 @@ aside{border-left:1px solid var(--rule);padding:26px 26px 40px;overflow:auto}
 .frame{background:#ece6df;padding:10px 10px 34px;border-radius:2px;box-shadow:0 18px 40px rgba(0,0,0,.45);transform:rotate(-.6deg);position:relative}
 .frame .scr{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#000}
 .frame iframe{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;pointer-events:none}
+#pvLive{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none}
+.pv-msg{position:absolute;inset:0;display:none;place-items:center;padding:12px;text-align:center;font-size:12px;line-height:1.7;color:#eee;background:rgba(0,0,0,.6)}
+.pv-msg:not([style*="none"]){display:grid}
+.pv-m{display:flex;gap:6px;align-items:center;margin:-4px 0 12px}
+.pv-m button{border:1px solid rgba(255,255,255,.18);background:none;color:inherit;font-size:11px;padding:3px 9px;border-radius:20px;cursor:pointer;opacity:.7}
+.pv-m button.on{opacity:1;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.4)}
+.pv-m select{margin-left:auto;font-size:11px;background:#1c1820;color:inherit;border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:2px 4px}
 .frame figcaption{position:absolute;left:12px;bottom:8px;font:13px var(--serif);color:#3a332e}
 .frame figcaption small{font:10px var(--mono);letter-spacing:.2em;color:#8a7f76;margin-left:8px}
 .notes{margin-top:30px;display:grid;gap:16px}
@@ -181,19 +205,26 @@ aside{border-left:1px solid var(--rule);padding:26px 26px 40px;overflow:auto}
     <div class="conn" id="conn"><i></i><span>接続中…</span></div><span class="ver" id="ver"></span>
     <div class="scrsel" id="scrSel" style="display:none"></div>
     <label class="find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="さがす（例: 音量、フォルダ、天気）"></label>
-    <a class="tool" href="/calendar" style="text-decoration:none">📅 予定ノート ↗</a>
-    <a class="tool" id="bGit" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:none">GitHub ↗</a>
-    <button class="tool" id="bReset">位置をリセット</button>
-    <button class="tool" id="bExport">書き出し</button>
-    <button class="tool" id="bImport">読み込み</button>
-    <button class="tool warn" id="bClear">すべて元に戻す</button>
+    <a class="tool" href="/calendar" style="text-decoration:none" title="予定をカレンダーで見たり、Excel に書き出したりできます">📅 予定ノート ↗</a>
+    <div class="menu"><button class="tool" data-menu title="設定をファイルに保存したり、保存したファイルから戻したりします">💾 設定ファイル ▾</button>
+      <div class="pop">
+        <button id="bExport"><b>設定をファイルに保存</b><small>今の設定を .json ファイルに書き出します（バックアップや別の PC へ）</small></button>
+        <button id="bImport"><b>ファイルから設定を読み込む</b><small>保存したファイルの設定に置きかえます（確認があります）</small></button>
+      </div></div>
+    <div class="menu"><button class="tool warn" data-menu title="位置や設定を最初の状態に戻します">↺ 元に戻す ▾</button>
+      <div class="pop">
+        <button id="bReset"><b>ウィジェットの位置を最初に戻す</b><small>動かしたウィジェットを最初の場所に並べ直します（確認があります）</small></button>
+        <button id="bClear" class="danger"><b>エディタの設定をすべて消す</b><small>ここで変えた設定を消して、Wallpaper Engine の設定に戻します（確認があります）</small></button>
+      </div></div>
+    <a class="tool sub" id="bGit" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:none" title="説明・新しい版のダウンロード（GitHub）">ヘルプ ↗</a>
     <input type="file" id="fImport" accept=".json,application/json" hidden>
   </header>
   <nav id="nav"></nav>
   <main id="main"><div class="page" id="page"></div></main>
   <aside>
     <div class="pv-t"><span>PREVIEW</span><button class="sw sm on" id="pvToggle" title="プレビューのオン/オフ"></button></div>
-    <figure class="frame" id="frame" style="margin:0"><div class="scr" id="scr"><iframe id="pvFrame" title="preview"></iframe></div><figcaption>いまの壁紙<small>LIVE</small></figcaption></figure>
+    <div class="pv-m"><button data-pv="live" title="Wallpaper Engine が今表示している壁紙を、1秒ごとに映します">実際の画面</button><button data-pv="sim" title="ブラウザの中で壁紙を動かして見せます（Wallpaper Engine 側の設定や配置は反映されません）">試し表示</button><select id="pvScreen" title="映す画面"></select></div>
+    <figure class="frame" id="frame" style="margin:0"><div class="scr" id="scr"><iframe id="pvFrame" title="preview"></iframe><img id="pvLive" alt=""><div class="pv-msg" id="pvMsg"></div></div><figcaption id="pvCap">いまの壁紙<small>LIVE</small></figcaption></figure>
     <div class="notes">
       <div class="memo">変えたらすぐ壁紙に反映されます（約1秒）。保存ボタンはありません。</div>
       <div class="memo">ここで変えた項目には <b>編集</b> の印が付き、Wallpaper Engine 側の設定より優先されます。「戻す」で元どおり。</div>
@@ -207,12 +238,21 @@ aside{border-left:1px solid var(--rule);padding:26px 26px 40px;overflow:auto}
 「この壁紙と接続しますか？」と聞かれたら <b>［はい］</b> を選んでください（画面の後ろに隠れていることがあります）。<br><br>
 <button id="nowpBtn">壁紙を探してつなぐ</button></div></div>
 <div class="upd" id="upd"><span id="updMsg"></span> <a id="updLink" href="https://sora2424.github.io/universal-widget-wallpaper/" target="_blank" rel="noopener">配布ページを開く ↗</a><button id="updClose" title="閉じる">×</button></div>
+<div class="cfm" id="cfm" role="dialog" aria-modal="true"><div class="cfm-box"><h3 id="cfmT"></h3><p id="cfmM"></p><div class="cfm-b"><button id="cfmNo">やめる</button><button id="cfmYes" class="go"></button></div></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
 const H={'X-Uww-Token':'1'};
+// the helper makes a new pass-phrase when it restarts (an update, or after a crash):
+// fetch it again and retry once, so an open editor keeps saving instead of silently failing
+{ const _fetch=window.fetch.bind(window);
+  window.fetch=async(u,o)=>{ const r=await _fetch(u,o), tk=o&&o.headers&&o.headers['X-Uww-Token'];
+    if(r.status===403&&tk&&tk!=='1'&&typeof u==='string'&&u.startsWith('/')){
+      try{ const t=await _fetch('/token',{cache:'no-store'}).then(x=>x.ok?x.text():'');
+        if(t&&t!==tk){ H['X-Uww-Token']=t; return _fetch(u,{...o,headers:{...o.headers,'X-Uww-Token':t}}); } }catch(e){} }
+    return r; }; }
 let schema=[], defs={}, values={}, sections=[], current='', saveTimer=0;
 
 /* short explanations shown under labels */
@@ -278,7 +318,7 @@ async function load(){
     schema=Object.keys(props).filter(k=>k!=='schemecolor').map(k=>({key:k,...props[k]})).sort((a,b)=>a.order-b.order);
     schema.forEach(p=>defs[p.key]=p);
     build(); nav(); open(location.hash.slice(1)||sections[0].id); conn('ok','ヘルパー接続中'); checkVersion();
-    $('pvFrame').src=pvSrc(); fit();
+    pvApply(); fit();
   }catch(e){ $('off').classList.add('show'); conn('err','未接続'); }
 }
 
@@ -313,6 +353,39 @@ async function checkVersion(){
     $('updClose').onclick=()=>{ $('upd').classList.remove('show'); try{ localStorage.setItem('uww-update-hide',tag); }catch(e){} };
   }
 }
+
+/* ---------------- preview: the real screen (live) or a copy running in this page (sim) ---------------- */
+let pvMode=(()=>{ try{ return localStorage.getItem('uww-pv-mode')==='sim'?'sim':'live'; }catch(e){ return 'live'; } })();
+let pvTimer=0, pvUrl='', pvBusy=false, pvScreens=[];
+const pvOn=()=>$('pvToggle').classList.contains('on');
+function pvMsg(t){ $('pvMsg').innerHTML=t||''; $('pvMsg').style.display=t?'':'none'; }
+async function pvLoadScreens(){
+  try{ pvScreens=await fetch('/live-screens',{headers:H,cache:'no-store'}).then(r=>r.ok?r.json():[]); }catch(e){ pvScreens=[]; }
+  if(!Array.isArray(pvScreens)) pvScreens=[];
+  const sel=$('pvScreen'), keep=sel.value||(()=>{ try{ return localStorage.getItem('uww-pv-screen')||'0'; }catch(e){ return '0'; } })();
+  sel.innerHTML=pvScreens.map((s,i)=>`<option value="${i}">画面 ${i+1}（${s.w}×${s.h}）</option>`).join('');
+  sel.value=pvScreens[+keep]?keep:'0'; sel.style.display=pvScreens.length>1?'':'none';
+}
+async function pvShot(){
+  if(pvBusy||pvMode!=='live'||!pvOn()||document.hidden) return; pvBusy=true;
+  try{ const r=await fetch('/live?i='+($('pvScreen').value||0)+'&t='+Date.now(),{headers:H,cache:'no-store'});
+    if(!r.ok){ pvMsg('Wallpaper Engine の壁紙が見つかりません。<br>壁紙を表示しているか、ゲームなどで止まっていないか確かめてください。'); await pvLoadScreens(); }
+    else { const u=URL.createObjectURL(await r.blob()); $('pvLive').src=u; if(pvUrl) URL.revokeObjectURL(pvUrl); pvUrl=u; pvMsg(''); } }
+  catch(e){ pvMsg('映せませんでした（ヘルパーが v1.5 より古いと使えません）'); }
+  pvBusy=false;
+}
+async function pvApply(){
+  document.querySelectorAll('[data-pv]').forEach(b=>b.classList.toggle('on',b.dataset.pv===pvMode));
+  clearInterval(pvTimer); const live=pvMode==='live', on=pvOn();
+  $('pvFrame').style.display=live?'none':''; $('pvLive').style.display=live?'block':'none'; $('pvScreen').style.visibility=live?'':'hidden';
+  $('pvCap').innerHTML=live?'実際の画面<small>LIVE</small>':'試し表示<small>SIMULATION</small>';
+  pvMsg('');
+  if(live){ $('pvFrame').src='about:blank'; if(on){ await pvLoadScreens(); pvShot(); pvTimer=setInterval(pvShot,1000); } }
+  else if(on){ $('pvFrame').src=pvSrc(); setTimeout(fit,50); }
+}
+document.querySelectorAll('[data-pv]').forEach(b=>b.onclick=()=>{ pvMode=b.dataset.pv; try{ localStorage.setItem('uww-pv-mode',pvMode); }catch(e){} pvApply(); });
+$('pvScreen').onchange=()=>{ try{ localStorage.setItem('uww-pv-screen',$('pvScreen').value); }catch(e){} pvShot(); };
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) pvShot(); });
 
 /* ---------------- fonts ---------------- */
 // the font list lives in the wallpaper's schema.js (window.UWW_FONTS=…); it is read as data, never run
@@ -354,7 +427,7 @@ async function switchScreen(id){
   if(id===INST) return; await flushSave();
   try{ const c=await fetch('/config?inst='+id,{headers:H,cache:'no-store'}).then(r=>{ if(!r.ok) throw 0; return r.json(); });
     INST=id; values=isObj(c.values)?c.values:{}; history.replaceState(null,'','?inst='+id+location.hash);
-    drawScreens(); nav(); open(current); if($('pvToggle').classList.contains('on')) $('pvFrame').src=pvSrc();
+    drawScreens(); nav(); open(current); if($('pvToggle').classList.contains('on')&&pvMode==='sim') $('pvFrame').src=pvSrc();
     const s=screens.find(x=>x.id===id); toast((s?scrName(s):'この画面')+' の設定に切り替えました');
   }catch(e){ toast('切り替えられませんでした'); }
 }
@@ -460,6 +533,8 @@ function ctl(p){
     draw(); return w; }
   if(p.type==='color'){ const c=document.createElement('input'); c.type='color'; c.className='cl'; c.value=toHex(v); c.oninput=()=>{ set(k,fromHex(c.value)); mark(k); }; return c; }
   const w=document.createElement('div'); w.className='ct';
+  if(p.type==='directory'){ // the folder can only be chosen in Wallpaper Engine (it lists the files for the wallpaper)
+    const t=document.createElement('input'); t.className='tx'; t.value=v||''; t.placeholder='Wallpaper Engine の設定画面で選んでください'; t.readOnly=true; w.appendChild(t); return w; }
   if(p.type==='file'){
     const t=document.createElement('input'); t.className='tx'; t.value=v||''; t.placeholder='まだ選ばれていません'; t.readOnly=true;
     const b=document.createElement('button'); b.className='btn'; b.textContent='選ぶ';
@@ -521,19 +596,33 @@ $('q').addEventListener('input',()=>{
 });
 
 /* ---------------- header ---------------- */
+/* ---------------- header menus and the "are you sure?" box ---------------- */
+document.querySelectorAll('[data-menu]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); const m=b.parentElement, was=m.classList.contains('open');
+  document.querySelectorAll('.menu.open').forEach(x=>x.classList.remove('open')); if(!was) m.classList.add('open'); });
+document.addEventListener('click',()=>document.querySelectorAll('.menu.open').forEach(x=>x.classList.remove('open')));
+function ask(title,msg,yes,danger){
+  return new Promise(res=>{ const box=$('cfm'), y=$('cfmYes'), n=$('cfmNo');
+    $('cfmT').textContent=title; $('cfmM').textContent=msg; y.textContent=yes||'OK'; y.classList.toggle('danger',!!danger);
+    const done=v=>{ box.classList.remove('show'); document.removeEventListener('keydown',key,true); y.onclick=n.onclick=box.onclick=null; res(v); };
+    const key=e=>{ if(e.key==='Escape'){ e.preventDefault(); done(false); } };
+    y.onclick=()=>done(true); n.onclick=()=>done(false); box.onclick=e=>{ if(e.target===box) done(false); };
+    document.addEventListener('keydown',key,true); box.classList.add('show'); n.focus(); });
+}
 $('bExport').onclick=()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(values,null,2)],{type:'application/json'})); a.download='widget-wallpaper-settings.json'; a.click(); toast('設定を書き出しました'); };
 $('bImport').onclick=()=>$('fImport').click();
-$('fImport').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); if(typeof j!=='object'||Array.isArray(j)) throw 0; values=j; save(); nav(); open(current); toast('設定を読み込みました'); }catch(err){ toast('読み込めませんでした'); } e.target.value=''; };
-$('bClear').onclick=()=>{ if(!confirm('エディタで変えた設定をすべて消して、Wallpaper Engine の設定に戻しますか？')) return; values={}; save(); nav(); open(current); toast('元に戻しました'); };
+$('fImport').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; try{ const j=JSON.parse(await f.text()); if(typeof j!=='object'||Array.isArray(j)) throw 0;
+    if(!await ask('ファイルから設定を読み込みますか？','「'+f.name+'」の設定に置きかえます。\n今の設定は消えるので、残したいときは先に「設定をファイルに保存」をしてください。','読み込む')) return;
+    values=j; save(); nav(); open(current); toast('設定を読み込みました'); }catch(err){ toast('読み込めませんでした'); } e.target.value=''; };
+$('bClear').onclick=async()=>{ if(!await ask('エディタの設定をすべて消しますか？','このエディタで変えた設定をすべて消して、Wallpaper Engine の設定画面の内容に戻します。\n元に戻せないので、残したいときは先に「設定をファイルに保存」をしてください。','すべて消す',true)) return; values={}; save(); nav(); open(current); toast('元に戻しました'); };
 // link to the project's GitHub page
 function gitLink(){ const a=$('bGit'); a.href='https://github.com/sora2424/universal-widget-wallpaper'; a.style.display=''; }
 setTimeout(gitLink,1500);
-$('bReset').onclick=()=>{ set('resetpos',true); setTimeout(()=>{ values.resetpos=false; save(); },2500); toast('ウィジェットを最初の場所に戻しました'); };
+$('bReset').onclick=async()=>{ if(!await ask('ウィジェットの位置を最初に戻しますか？','ドラッグで動かしたウィジェットを、すべて最初の場所に並べ直します。\n（大きさや表示する内容はそのままです）','位置を戻す',true)) return; set('resetpos',true); setTimeout(()=>{ values.resetpos=false; save(); },2500); toast('ウィジェットを最初の場所に戻しました'); };
 
 /* ---------------- preview ---------------- */
 function fit(){ const s=$('scr'); $('pvFrame').style.transform=`scale(${s.clientWidth/1920})`; }
 addEventListener('resize',fit);
-$('pvToggle').onclick=()=>{ const on=!$('pvToggle').classList.contains('on'); $('pvToggle').classList.toggle('on',on); $('frame').style.display=on?'':'none'; $('pvFrame').src=on?pvSrc():'about:blank'; if(on) setTimeout(fit,50); };
+$('pvToggle').onclick=()=>{ const on=!$('pvToggle').classList.contains('on'); $('pvToggle').classList.toggle('on',on); $('frame').style.display=on?'':'none'; if(!on){ $('pvFrame').src='about:blank'; clearInterval(pvTimer); } else pvApply(); };
 setInterval(()=>fetch('/ping',{cache:'no-store'}).then(r=>{ if(!r.ok) throw 0; $('off').classList.remove('show'); if($('conn').classList.contains('err')) conn('ok','ヘルパー接続中'); }).catch(()=>conn('err','未接続')),4000);
 load();
 </script>
